@@ -55,7 +55,7 @@ services:
     environment:
       PGADMIN_DEFAULT_EMAIL: dropgala@gmail.com
       PGADMIN_DEFAULT_PASSWORD: admin123we63zxc49dc0c828ff4
-      PGADMIN_CONFIG_ENHANCED_COOKIE_PROTECTION: True
+      PGADMIN_CONFIG_ENHANCED_COOKIE_PROTECTION: "True"
     volumes:
       - ./pgadmin:/root/.pgadmin
     restart: unless-stopped
