@@ -31,7 +31,7 @@ services:
       - "5422:5422"
     volumes:
       - ./web-root:/var/www/html
-      - ./nginx.conf:/etc/nginx/conf.d/nginx.conf
+      - ./nginx.conf:/etc/nginx/nginx.conf
       - certbot-etc:/etc/letsencrypt
       - certbot-var:/var/lib/letsencrypt
       - ./dhparam:/etc/ssl/certs
@@ -55,7 +55,7 @@ services:
     environment:
       PGADMIN_DEFAULT_EMAIL: dropgala@gmail.com
       PGADMIN_DEFAULT_PASSWORD: admin123we63zxc49dc0c828ff4
-      PGADMIN_CONFIG_ENHANCED_COOKIE_PROTECTION: "true"
+      PGADMIN_CONFIG_ENHANCED_COOKIE_PROTECTION: True
     volumes:
       - ./pgadmin:/root/.pgadmin
     restart: unless-stopped
