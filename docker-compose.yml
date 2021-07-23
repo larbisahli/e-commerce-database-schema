@@ -34,6 +34,7 @@ services:
       - ./nginx.conf:/etc/nginx/conf.d
       - certbot-etc:/etc/letsencrypt
       - certbot-var:/var/lib/letsencrypt
+      - dhparam:/etc/ssl/certs
     networks:
       - backend-network
 
@@ -69,6 +70,12 @@ volumes:
     driver_opts:
       type: none
       device: /home/isaac/dropgala-database/views/
+      o: bind
+  dhparam:
+    driver: local
+    driver_opts:
+      type: none
+      device: /home/isaac/dropgala-database/dhparam/
       o: bind
 
 networks:

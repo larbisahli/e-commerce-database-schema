@@ -12,12 +12,12 @@ jobs:
         uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.SSH_HOST }} # Ip address of the server you wish to ssh into
-          key: ${{ secrets.SSH_KEY }} # Private or public key of the server
+          key: ${{ secrets.SSH_KEY }} # SSH_KEY is Private key, add the public key to authorized_keys of the server
           username: ${{ secrets.SSH_USERNAME }} # User of the server you want to ssh into
           
           script: |
             eval $(ssh-agent -s)
             ssh-add /home/isaac/.ssh/id_rsa
             cd dropgala-database
-            git pull origin main
+            git pull origin develop
             echo 'Successfully Deploy to DigitalOcean'

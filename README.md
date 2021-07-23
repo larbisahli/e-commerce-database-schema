@@ -24,3 +24,9 @@ Once connected, run the following command to set your environment variable:
 ```bash
 $ export YOUR_VARIABLE_KEY=<your-variable-value>
 ```
+
+## Let's Ecnrypt
+
+```bash
+$ sudo openssl dhparam -out /home/isaac/dropgala_database/dhparam/dhparam-2048.pem 2048
+```
