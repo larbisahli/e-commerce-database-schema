@@ -166,7 +166,7 @@ CREATE TABLE visitors_part3 PARTITION OF visitors FOR VALUES WITH (modulus 3, re
 -- DB Version: 13
 -- OS Type: linux
 -- DB Type: web
--- Total Memory (RAM): 2 GB
+-- Total Memory (RAM): 1 GB
 -- CPUs num: 1
 -- Data Storage: ssd
 

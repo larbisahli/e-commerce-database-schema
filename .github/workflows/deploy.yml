@@ -2,7 +2,7 @@ name: Build & Deploy
 
 on:
   push:
-    branches: [ main-x ]
+    branches: [ main ]
 
 jobs:
   deploy:
@@ -12,14 +12,12 @@ jobs:
         uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.SSH_HOST }} # Ip address of the server you wish to ssh into
-          key: ${{ secrets.SSH_KEY }} # Private or public key of the server
+          key: ${{ secrets.SSH_KEY }} # SSH_KEY is Private key, add the public key to authorized_keys of the server
           username: ${{ secrets.SSH_USERNAME }} # User of the server you want to ssh into
           
           script: |
             eval $(ssh-agent -s)
-            ssh-add /home/isaac/.ssh/id_rsa
+            ssh-add /home/isaac/.ssh/id_rsa_github
             cd dropgala-database
             git pull origin main
-            echo ${{ secrets.USER_PASSWORD }} | sudo -S docker-compose rm -sv nextjs
-            echo ${{ secrets.USER_PASSWORD }} | sudo -S docker-compose up -d --no-deps --build nextjs
             echo 'Successfully Deploy to DigitalOcean'

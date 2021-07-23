@@ -1,0 +1,5 @@
+# docker volume file
+/data/
+/dhparam/
+/pgadmin/
+/web-root/

@@ -8,9 +8,9 @@ Website : https://dropgala.com
 
 ### pgadmin ssh:
 
-check: https://medium.com/3-elm-erlang-elixir/faq-how-to-connect-pgadmin4-to-db-through-ssh-tunnel-with-public-key-authentication-b351750c20be
+check: [how-to-connect-pgadmin4-to-db-through-ssh-tunnel-with-public-key-authentication](https://medium.com/3-elm-erlang-elixir/faq-how-to-connect-pgadmin4-to-db-through-ssh-tunnel-with-public-key-authentication-b351750c20be)
 
-Nginx-keepalive: https://www.digitalocean.com/community/tutorials/how-to-set-up-highly-available-web-servers-with-keepalived-and-floating-ips-on-ubuntu-14-04
+Nginx-keepalive: [Here](https://www.digitalocean.com/community/tutorials/how-to-set-up-highly-available-web-servers-with-keepalived-and-floating-ips-on-ubuntu-14-04)
 
 ### environment variables
 
@@ -23,4 +23,31 @@ Once connected, run the following command to set your environment variable:
 
 ```bash
 $ export YOUR_VARIABLE_KEY=<your-variable-value>
+```
+
+## Let's Ecnrypt
+
+SSL valid until: Thu, 21 Oct 2021 02:33:48
+
+check: [Here](https://www.digitalocean.com/community/tutorials/how-to-secure-a-containerized-node-js-application-with-nginx-let-s-encrypt-and-docker-compose)
+
+Logrotate: [Here](https://www.digitalocean.com/community/tutorials/how-to-manage-logfiles-with-logrotate-on-ubuntu-16-04)
+
+<!-- location @nodejs {
+                proxy_pass http://nodejs:8080;
+                add_header X-Frame-Options "SAMEORIGIN" always;
+                add_header X-XSS-Protection "1; mode=block" always;
+                add_header X-Content-Type-Options "nosniff" always;
+                add_header Referrer-Policy "no-referrer-when-downgrade" always;
+                add_header Content-Security-Policy "default-src * data: 'unsafe-eval' 'unsafe-inline'" always;
+                # add_header Strict-Transport-Security "max-age=31536000; includeSubDomains; preload" always;
+                # enable strict transport security only if you understand the implications
+        } -->
+
+## Logs:
+
+Let's Encript renew Logs
+
+```bash
+$ tail -f /var/log/cron.log
 ```
