@@ -2,7 +2,7 @@ name: Build & Deploy
 
 on:
   push:
-    branches: [ main-x ]
+    branches: [ develop ]
 
 jobs:
   deploy:
@@ -20,6 +20,4 @@ jobs:
             ssh-add /home/isaac/.ssh/id_rsa
             cd dropgala-database
             git pull origin main
-            echo ${{ secrets.USER_PASSWORD }} | sudo -S docker-compose rm -sv nextjs
-            echo ${{ secrets.USER_PASSWORD }} | sudo -S docker-compose up -d --no-deps --build nextjs
             echo 'Successfully Deploy to DigitalOcean'

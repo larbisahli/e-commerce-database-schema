@@ -24,19 +24,29 @@ services:
   webserver:
     image: nginx:latest
     container_name: webserver
-    restart: always
+    restart: unless-stopped
     ports:
       - "80:80"
       - "443:443"
       - "5422:5422"
     volumes:
-      # - ./nginx.dev.conf:/etc/nginx/nginx.conf
-      - ./nginx.conf:/etc/nginx/nginx.conf
-      - /etc/letsencrypt/live/pgadmin-xyz.dropgala.com/fullchain.pem:/etc/nginx/fullchain.pem
-      - /etc/letsencrypt/live/pgadmin-xyz.dropgala.com/privkey.pem:/etc/nginx/privkey.pem
-      - /etc/letsencrypt/live/pgadmin-xyz.dropgala.com/chain.pem:/etc/nginx/chain.pem
-      - /var/log/nginx/pgadmin-xyz.dropgala.com.access.log:/var/log/nginx/pgadmin-xyz.dropgala.com.access.log
-      - /var/log/nginx/pgadmin-xyz.dropgala.com.error.log:/var/log/nginx/pgadmin-xyz.dropgala.com.error.log
+      - web-root:/var/www/html
+      - ./nginx.conf:/etc/nginx/conf.d
+      - certbot-etc:/etc/letsencrypt
+      - certbot-var:/var/lib/letsencrypt
+    networks:
+      - backend-network
+
+  certbot:
+    image: certbot/certbot
+    container_name: certbot
+    volumes:
+      - certbot-etc:/etc/letsencrypt
+      - certbot-var:/var/lib/letsencrypt
+      - web-root:/var/www/html
+    depends_on:
+      - webserver
+    command: certonly --webroot --webroot-path=/var/www/html --email dropgala@gmail.com --agree-tos --no-eff-email --staging -d pgadmin-xyz.dropgala.com
 
   pgadmin:
     container_name: pgadmin
@@ -46,11 +56,21 @@ services:
       PGADMIN_DEFAULT_PASSWORD: admin123we63zxc49dc0c828ff4
       PGADMIN_CONFIG_ENHANCED_COOKIE_PROTECTION: true
     volumes:
-      - pgadmin:/root/.pgadmin
+      - ./pgadmin:/root/.pgadmin
     restart: unless-stopped
+    networks:
+      - backend-network
+
 volumes:
-  pgadmin:
+  certbot-etc:
+  certbot-var:
+  web-root:
+    driver: local
+    driver_opts:
+      type: none
+      device: /home/isaac/dropgala-database/views/
+      o: bind
+
 networks:
-  default:
-    external:
-      name: backend
+  backend-network:
+    driver: bridge
