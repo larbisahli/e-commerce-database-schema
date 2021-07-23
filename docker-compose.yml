@@ -47,7 +47,7 @@ services:
       - ./web-root:/var/www/html
     depends_on:
       - webserver
-    command: certonly --webroot --webroot-path=/var/www/html --email dropgala@gmail.com --agree-tos --no-eff-email --staging -d pgadmin-xyz.dropgala.com
+    command: certonly --webroot --webroot-path=/var/www/html --email dropgala@gmail.com --agree-tos --no-eff-email --force-renewal -d pgadmin-xyz.dropgala.com
 
   pgadmin:
     container_name: pgadmin
