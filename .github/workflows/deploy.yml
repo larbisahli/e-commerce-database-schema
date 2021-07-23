@@ -17,7 +17,7 @@ jobs:
           
           script: |
             eval $(ssh-agent -s)
-            ssh-add /home/isaac/.ssh/id_rsa
+            ssh-add /home/isaac/.ssh/id_rsa_github
             cd dropgala-database
             git pull origin develop
             echo 'Successfully Deploy to DigitalOcean'

@@ -30,11 +30,11 @@ services:
       - "443:443"
       - "5422:5422"
     volumes:
-      - web-root:/var/www/html
+      - ./web-root:/var/www/html
       - ./nginx.conf:/etc/nginx/conf.d
       - certbot-etc:/etc/letsencrypt
       - certbot-var:/var/lib/letsencrypt
-      - dhparam:/etc/ssl/certs
+      - ./dhparam:/etc/ssl/certs
     networks:
       - backend-network
 
@@ -44,7 +44,7 @@ services:
     volumes:
       - certbot-etc:/etc/letsencrypt
       - certbot-var:/var/lib/letsencrypt
-      - web-root:/var/www/html
+      - ./web-root:/var/www/html
     depends_on:
       - webserver
     command: certonly --webroot --webroot-path=/var/www/html --email dropgala@gmail.com --agree-tos --no-eff-email --staging -d pgadmin-xyz.dropgala.com
@@ -65,18 +65,6 @@ services:
 volumes:
   certbot-etc:
   certbot-var:
-  web-root:
-    driver: local
-    driver_opts:
-      type: none
-      device: /home/isaac/dropgala-database/views/
-      o: bind
-  dhparam:
-    driver: local
-    driver_opts:
-      type: none
-      device: /home/isaac/dropgala-database/dhparam/
-      o: bind
 
 networks:
   backend-network:
