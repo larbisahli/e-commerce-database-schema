@@ -2,7 +2,7 @@ name: Build & Deploy
 
 on:
   push:
-    branches: [ develop ]
+    branches: [ main ]
 
 jobs:
   deploy:
@@ -19,5 +19,5 @@ jobs:
             eval $(ssh-agent -s)
             ssh-add /home/isaac/.ssh/id_rsa_github
             cd dropgala-database
-            git pull origin develop
+            git pull origin main
             echo 'Successfully Deploy to DigitalOcean'

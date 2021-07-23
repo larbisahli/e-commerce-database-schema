@@ -1,25 +1,25 @@
 version: "3.8"
 services:
-  # postgres:
-  #   container_name: postgres
-  #   image: postgres
-  #   environment:
-  #     POSTGRES_USER: admin
-  #     POSTGRES_PASSWORD: 0bfefac233dcf17d363be29570d
-  #     POSTGRES_DB: production
-  #     POSTGRES_DEV_USER: dev
-  #     POSTGRES_DEV_PASSWORD: 5239dd81cv237a62bcdd95bb4a3
-  #     POSTGRES_DEV_DB: development
-  #     PGDATA: /var/lib/postgresql/data/
-  #   volumes:
-  #     - ./database:/var/lib/postgresql/data/
-  #     - ./data_exports:/var/lib/postgresql/exports/
-  #     - ./init-development-db.sh:/docker-entrypoint-initdb.d/init-development-db.sh
-  #     - ./init.sql:/docker-entrypoint-initdb.d/init.sql
-  #     - ./init.sql:/var/lib/data/init.sql
-  #   ports:
-  #     - "5432:5432"
-  #   restart: always
+  postgres:
+    container_name: postgres
+    image: postgres
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: 0bfefac233dcf17d363be29570d
+      POSTGRES_DB: production
+      POSTGRES_DEV_USER: dev
+      POSTGRES_DEV_PASSWORD: 5239dd81cv237a62bcdd95bb4a3
+      POSTGRES_DEV_DB: development
+      PGDATA: /var/lib/postgresql/data/
+    volumes:
+      - ./database:/var/lib/postgresql/data/
+      - ./data_exports:/var/lib/postgresql/exports/
+      - ./init-development-db.sh:/docker-entrypoint-initdb.d/init-development-db.sh
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./init.sql:/var/lib/data/init.sql
+    ports:
+      - "5432:5432"
+    restart: always
 
   webserver:
     image: nginx:latest
