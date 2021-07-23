@@ -35,6 +35,8 @@ services:
       - certbot-etc:/etc/letsencrypt
       - certbot-var:/var/lib/letsencrypt
       - ./dhparam:/etc/ssl/certs
+    depends_on:
+      - pgadmin
     networks:
       - backend-network
 

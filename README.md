@@ -30,3 +30,14 @@ $ export YOUR_VARIABLE_KEY=<your-variable-value>
 ```bash
 $ sudo openssl dhparam -out /home/isaac/dropgala_database/dhparam/dhparam-2048.pem 2048
 ```
+
+<!-- location @nodejs {
+                proxy_pass http://nodejs:8080;
+                add_header X-Frame-Options "SAMEORIGIN" always;
+                add_header X-XSS-Protection "1; mode=block" always;
+                add_header X-Content-Type-Options "nosniff" always;
+                add_header Referrer-Policy "no-referrer-when-downgrade" always;
+                add_header Content-Security-Policy "default-src * data: 'unsafe-eval' 'unsafe-inline'" always;
+                # add_header Strict-Transport-Security "max-age=31536000; includeSubDomains; preload" always;
+                # enable strict transport security only if you understand the implications
+        } -->
