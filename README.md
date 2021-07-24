@@ -33,6 +33,8 @@ check: [Here](https://www.digitalocean.com/community/tutorials/how-to-secure-a-c
 
 Logrotate: [Here](https://www.digitalocean.com/community/tutorials/how-to-manage-logfiles-with-logrotate-on-ubuntu-16-04)
 
+ENV : [Here](https://docs.greatexpectations.io/en/0.11.6/how_to_guides/configuring_data_contexts/how_to_use_a_yaml_file_or_environment_variables_to_populate_credentials.html)
+
 <!-- location @nodejs {
                 proxy_pass http://nodejs:8080;
                 add_header X-Frame-Options "SAMEORIGIN" always;
