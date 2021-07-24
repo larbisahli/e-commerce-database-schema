@@ -3,3 +3,4 @@
 /dhparam/
 /pgadmin/
 /web-root/
+.env
