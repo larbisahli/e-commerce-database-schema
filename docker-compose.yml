@@ -18,7 +18,7 @@ services:
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql
       - ./init.sql:/var/lib/data/init.sql
     ports:
-      - "5432:5432"
+      - "5432"
     restart: always
     networks:
       - backend-network
