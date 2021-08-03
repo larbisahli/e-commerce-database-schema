@@ -1,7 +1,7 @@
 version: "3.8"
 services:
   postgres_ef686c8a89:
-    container_name: postgres
+    container_name: postgres_ef686c8a89
     image: postgres
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
