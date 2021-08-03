@@ -4,12 +4,12 @@ services:
     container_name: postgres
     image: postgres
     environment:
-      POSTGRES_USER: admin
-      POSTGRES_PASSWORD: 0bfefac233dcf17d363be29570d
-      POSTGRES_DB: production
-      POSTGRES_DEV_USER: dev
-      POSTGRES_DEV_PASSWORD: 5239dd81cv237a62bcdd95bb4a3
-      POSTGRES_DEV_DB: development
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_DEV_USER: ${POSTGRES_DEV_USER}
+      POSTGRES_DEV_PASSWORD: ${POSTGRES_DEV_PASSWORD}
+      POSTGRES_DEV_DB: ${POSTGRES_DEV_DB}
       PGDATA: /var/lib/postgresql/data/
     volumes:
       - ./database:/var/lib/postgresql/data/
@@ -20,6 +20,8 @@ services:
     ports:
       - "5432:5432"
     restart: always
+    networks:
+      - backend-network
 
   webserver:
     image: nginx:latest
@@ -56,7 +58,7 @@ services:
     image: dpage/pgadmin4
     environment:
       PGADMIN_DEFAULT_EMAIL: dropgala@gmail.com
-      PGADMIN_DEFAULT_PASSWORD: admin123we63zxc49dc0c828ff4
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD}
       PGADMIN_CONFIG_ENHANCED_COOKIE_PROTECTION: "True"
     volumes:
       - ./pgadmin:/root/.pgadmin
