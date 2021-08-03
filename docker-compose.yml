@@ -1,7 +1,7 @@
 version: "3.8"
 services:
-  postgres:
-    container_name: postgres
+  postgres_ef686c8a89:
+    container_name: postgres_ef686c8a89
     image: postgres
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
@@ -18,7 +18,7 @@ services:
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql
       - ./init.sql:/var/lib/data/init.sql
     ports:
-      - "5432:5432"
+      - "5432"
     restart: always
     networks:
       - backend-network
