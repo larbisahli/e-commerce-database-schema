@@ -1,5 +1,6 @@
 # docker volume file
 /database/
+/data_exports/
 /dhparam/
 /pgadmin/
 /web-root/
