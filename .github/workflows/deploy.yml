@@ -18,7 +18,7 @@ jobs:
           
           script: |
             eval $(ssh-agent -s)
-            echo ${{ secrets.SSH_PASSPHRASE }} | ssh-add /home/isaac/.ssh/id_rsa_github
+            echo ${{ secrets.SSH_PASSPHRASE }} | SSH_ASKPASS=/usr/bin/cat ssh-add /home/isaac/.ssh/id_rsa_github
             cd dropgala-database
             git pull origin main
             echo 'Successfully Deploy to DigitalOcean'
