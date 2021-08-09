@@ -50,14 +50,12 @@ CREATE TABLE IF NOT EXISTS products (
   short_description VARCHAR(165) NOT NULL,
   inventory SMALLINT NOT NULL,
   product_weight SMALLINT NOT NULL,
-  available_sizes TEXT[],
-  available_colors TEXT[],
   is_new BOOLEAN NOT NULL,
   note TEXT,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (product_uid)
-) PARTITION BY HASH(product_uid);
+);
 
 CREATE TABLE IF NOT EXISTS images (
   image_uid UUID DEFAULT uuid_generate_v4(),
@@ -68,6 +66,27 @@ CREATE TABLE IF NOT EXISTS images (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (image_uid)
 ) PARTITION BY HASH(image_uid);
+
+CREATE TABLE IF NOT EXISTS attributes (
+  attribute_uid UUID DEFAULT uuid_generate_v4(),
+  product_uid UUID REFERENCES products(product_uid),
+  attribute_name VARCHAR(90) NOT NULL,
+  PRIMARY KEY (attribute_uid)
+);
+
+CREATE TABLE IF NOT EXISTS options (
+  option_uid UUID DEFAULT uuid_generate_v4(),
+  attribute_uid UUID REFERENCES attributes(attribute_uid),
+  option_name VARCHAR(90) NOT NULL,
+  PRIMARY KEY (attribute_uid)
+);
+
+CREATE TABLE IF NOT EXISTS variants (
+  variant_uid UUID DEFAULT uuid_generate_v4(),
+  options UUID[] NOT NULL,
+  price FLOAT NOT NULL CHECK(price >= 0),
+  PRIMARY KEY (attribute_uid)
+);
 
 CREATE TABLE IF NOT EXISTS visitors (
   visitor_uid UUID DEFAULT uuid_generate_v4(),
@@ -94,10 +113,11 @@ CREATE TABLE IF NOT EXISTS orders (
   order_uid UUID DEFAULT uuid_generate_v4(),
   product_uid UUID REFERENCES products(product_uid),
   customer_uid UUID REFERENCES customers(customer_uid),
+  variant_uid REFERENCES variants(variant_uid),
   quantity SMALLINT NOT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (order_uid)
-  -- for security reasons don't add total price here get it using product_uid
+  -- for security reasons don't add total price from the frontend get it using product_uid
   -- isolation level 
 );
 
@@ -107,7 +127,7 @@ CREATE TABLE IF NOT EXISTS sells (
   price FLOAT NOT NULL,
   quantity SMALLINT NOT NULL,
   PRIMARY KEY (id)
-  -- how many unit we sold one row for each product
+  -- how many unit we sold, one row for each product
 );
 
 CREATE TABLE IF NOT EXISTS slideshow (
@@ -146,10 +166,6 @@ CREATE TRIGGER product_update
   EXECUTE PROCEDURE update_timestamp();
 
 -- Partitions
-
-CREATE TABLE products_part1 PARTITION OF products FOR VALUES WITH (modulus 3, remainder 0);
-CREATE TABLE products_part2 PARTITION OF products FOR VALUES WITH (modulus 3, remainder 1);
-CREATE TABLE products_part3 PARTITION OF products FOR VALUES WITH (modulus 3, remainder 2);
 
 CREATE TABLE images_part1 PARTITION OF images FOR VALUES WITH (modulus 3, remainder 0);
 CREATE TABLE images_part2 PARTITION OF images FOR VALUES WITH (modulus 3, remainder 1);
