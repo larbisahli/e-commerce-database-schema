@@ -46,3 +46,21 @@ Let's Encript renew Logs
 ```bash
 $ tail -f /var/log/cron.log
 ```
+
+## log ssh login
+
+```bash
+$ sudo cat /var/log/auth.log
+```
+
+If you want to check for compromise, look at wtmp (type who), and look at the system logs. Audit records in syslog (like "session opened for user james") will shed some light.
+
+```bash
+$ who
+```
+
+You could also look for users you do not recognize, and inspect traffic and connections
+
+```bash
+$ netstat -nvlp
+```
