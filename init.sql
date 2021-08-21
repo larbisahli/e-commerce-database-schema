@@ -14,28 +14,18 @@ CREATE TABLE IF NOT EXISTS accounts (
   account_uid UUID DEFAULT uuid_generate_v4(),
   first_name VARCHAR(100) NOT NULL,
   last_name VARCHAR(100) NOT NULL,
+  username VARCHAR(50) NOT NULL,
   phone_number VARCHAR(100) NOT NULL,
   email VARCHAR(255) NOT NULL,
   password_hash TEXT NOT NULL,
-  registered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   is_active BOOLEAN,
+  profile_img TEXT,
   privileges TEXT[],
-  birthdate DATE,
+  registered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   UNIQUE(email),
+  UNIQUE(username),
   UNIQUE(phone_number),
   PRIMARY KEY (account_uid)
-);
-
-CREATE TABLE IF NOT EXISTS profiles (
-  profile_uid UUID DEFAULT uuid_generate_v4(),
-  account_uid UUID REFERENCES accounts(account_uid),
-  username VARCHAR(50) NOT NULL,
-  intro VARCHAR(255),
-  date_updated TIMESTAMP,
-  profile_img TEXT,
-  background_img TEXT,
-  UNIQUE(username),
-  PRIMARY KEY (profile_uid)
 );
 
 CREATE TABLE IF NOT EXISTS products (
@@ -83,17 +73,16 @@ CREATE TABLE IF NOT EXISTS options (
   PRIMARY KEY (option_uid)
 );
 
-CREATE TABLE IF NOT EXISTS visitors (
-  visitor_uid UUID DEFAULT uuid_generate_v4(),
+CREATE TABLE IF NOT EXISTS clients (
+  client_uid UUID DEFAULT uuid_generate_v4(),
   shopping_cart UUID[],
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  last_visit TIMESTAMP,
-  PRIMARY KEY (visitor_uid)
-) PARTITION BY HASH(visitor_uid);
+  first_visit TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (client_uid)
+) PARTITION BY HASH(client_uid);
 
 CREATE TABLE IF NOT EXISTS customers (
   customer_uid UUID DEFAULT uuid_generate_v4(),
-  visitor_uid UUID REFERENCES visitors(visitor_uid),
+  client_uid UUID REFERENCES clients(client_uid),
   first_name VARCHAR(90) NOT NULL,
   last_name VARCHAR(90) NOT NULL,
   client_address TEXT NOT NULL,
@@ -109,7 +98,7 @@ CREATE TABLE IF NOT EXISTS orders (
   product_uid UUID REFERENCES products(product_uid),
   customer_uid UUID REFERENCES customers(customer_uid),
   quantity SMALLINT NOT NULL,
-  options UUID[] NOT NULL,
+  options UUID[],
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (order_uid)
   -- for security reasons don't add total price from the frontend get it using product_uid
@@ -166,9 +155,9 @@ CREATE TABLE images_part1 PARTITION OF images FOR VALUES WITH (modulus 3, remain
 CREATE TABLE images_part2 PARTITION OF images FOR VALUES WITH (modulus 3, remainder 1);
 CREATE TABLE images_part3 PARTITION OF images FOR VALUES WITH (modulus 3, remainder 2);
 
-CREATE TABLE visitors_part1 PARTITION OF visitors FOR VALUES WITH (modulus 3, remainder 0);
-CREATE TABLE visitors_part2 PARTITION OF visitors FOR VALUES WITH (modulus 3, remainder 1);
-CREATE TABLE visitors_part3 PARTITION OF visitors FOR VALUES WITH (modulus 3, remainder 2);
+CREATE TABLE clients_part1 PARTITION OF clients FOR VALUES WITH (modulus 3, remainder 0);
+CREATE TABLE clients_part2 PARTITION OF clients FOR VALUES WITH (modulus 3, remainder 1);
+CREATE TABLE clients_part3 PARTITION OF clients FOR VALUES WITH (modulus 3, remainder 2);
 
 
 -- System Set
