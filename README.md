@@ -24,6 +24,8 @@ Once connected, run the following command to set your environment variable:
 ```bash
 $ export YOUR_VARIABLE_KEY=<your-variable-value>
 ```
+fail2ban:
+https://www.digitalocean.com/community/tutorials/how-to-protect-ssh-with-fail2ban-on-ubuntu-14-04
 
 Secure a containerized nodejs application with nginx: [Here](https://www.digitalocean.com/community/tutorials/how-to-secure-a-containerized-node-js-application-with-nginx-let-s-encrypt-and-docker-compose)
 
