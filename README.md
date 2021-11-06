@@ -25,15 +25,11 @@ Once connected, run the following command to set your environment variable:
 $ export YOUR_VARIABLE_KEY=<your-variable-value>
 ```
 
-## Let's Ecnrypt
+Secure a containerized nodejs application with nginx: [Here](https://www.digitalocean.com/community/tutorials/how-to-secure-a-containerized-node-js-application-with-nginx-let-s-encrypt-and-docker-compose)
 
-SSL valid until: Thu, 21 Oct 2021 02:33:48
+Logfiles with logrotate on ubuntu: [Here](https://www.digitalocean.com/community/tutorials/how-to-manage-logfiles-with-logrotate-on-ubuntu-16-04)
 
-check: [Here](https://www.digitalocean.com/community/tutorials/how-to-secure-a-containerized-node-js-application-with-nginx-let-s-encrypt-and-docker-compose)
-
-Logrotate: [Here](https://www.digitalocean.com/community/tutorials/how-to-manage-logfiles-with-logrotate-on-ubuntu-16-04)
-
-ENV : [Here](https://docs.greatexpectations.io/en/0.11.6/how_to_guides/configuring_data_contexts/how_to_use_a_yaml_file_or_environment_variables_to_populate_credentials.html)
+Secure environment_variables in yaml: [Here](https://docs.greatexpectations.io/en/0.11.6/how_to_guides/configuring_data_contexts/how_to_use_a_yaml_file_or_environment_variables_to_populate_credentials.html)
 
 ```bash
 $ tail -f /var/log/cron.log
