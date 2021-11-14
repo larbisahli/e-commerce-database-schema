@@ -1,4 +1,4 @@
-## <h3 align="center">DropGala Database Configuration</h3>
+## <h3 align="center">Database Configuration</h3>
 
 ### Database Diagram:
 
