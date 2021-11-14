@@ -1,4 +1,3 @@
-## <h3 align="center">Database Configuration</h3>
 
 ### Database Diagram:
 
