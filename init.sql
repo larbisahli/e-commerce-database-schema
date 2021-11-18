@@ -1,115 +1,157 @@
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 CREATE TABLE IF NOT EXISTS categories (
-  category_uid UUID DEFAULT uuid_generate_v4(),
-  category_name VARCHAR(255),
+  category_id UUID DEFAULT uuid_generate_v4(),
+  category_name VARCHAR(70) NOT NULL,
+  parent_id REFERENCES categories(category_id),
   category_description TEXT,
-  is_active BOOLEAN,
-  display_order SERIAL NOT NULL,
+  active BOOLEAN DEFAULT TRUE,
+  icon TEXT,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   UNIQUE(category_name),
-  PRIMARY KEY (category_uid)
+  UNIQUE(parent_id),
+  PRIMARY KEY (category_id,parent_id)
 );
 
-CREATE TABLE IF NOT EXISTS accounts (
-  account_uid UUID DEFAULT uuid_generate_v4(),
+CREATE TABLE IF NOT EXISTS staff_accounts (
+  account_id UUID DEFAULT uuid_generate_v4(),
   first_name VARCHAR(100) NOT NULL,
   last_name VARCHAR(100) NOT NULL,
-  username VARCHAR(50) NOT NULL,
-  phone_number VARCHAR(100) NOT NULL,
+  phone_number VARCHAR(100),
   email VARCHAR(255) NOT NULL,
   password_hash TEXT NOT NULL,
-  is_active BOOLEAN,
+  active BOOLEAN DEFAULT TRUE,
   profile_img TEXT,
-  privileges TEXT[],
+  staff_privileges TEXT[],
   registered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   UNIQUE(email),
-  UNIQUE(username),
   UNIQUE(phone_number),
-  PRIMARY KEY (account_uid)
+  PRIMARY KEY (account_id)
 );
 
 CREATE TABLE IF NOT EXISTS products (
-  product_uid UUID DEFAULT uuid_generate_v4(),
-  category_uid UUID REFERENCES categories(category_uid),
-  account_uid UUID REFERENCES accounts(account_uid),
+  product_id UUID DEFAULT uuid_generate_v4(),
   title TEXT NOT NULL,
-  price FLOAT NOT NULL CHECK(price >= 0),
-  discount FLOAT CHECK(discount >= 0 AND discount <= 100),
-  warehouse_location VARCHAR(255) NOT NULL,
+  regular_price NUMERIC DEFAULT 0,
+  discount_price NUMERIC DEFAULT 0,
   product_description TEXT NOT NULL,
   short_description VARCHAR(165) NOT NULL,
-  inventory SMALLINT NOT NULL,
-  product_weight FLOAT NOT NULL,
-  is_new BOOLEAN NOT NULL,
-  note TEXT,
+  quantity INTEGER DEFAULT 0,
+  product_weight NUMERIC NOT NULL,
+  product_note TEXT,
+  published BOOLEAN DEFAULT TRUE,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (product_uid)
+  PRIMARY KEY (product_id)
 );
 
-CREATE TABLE IF NOT EXISTS images (
-  image_uid UUID DEFAULT uuid_generate_v4(),
-  product_uid UUID REFERENCES products(product_uid),
+CREATE TABLE IF NOT EXISTS product_categories (
+  product_id UUID REFERENCES products(product_id),
+  category_id REFERENCES categories(category_id),
+  PRIMARY KEY (product_id, category_id)
+);
+
+CREATE TABLE IF NOT EXISTS galleries (
+  gallery_id UUID DEFAULT uuid_generate_v4(),
+  product_id UUID REFERENCES products(product_id),
   image_path TEXT NOT NULL,
-  thumbnail BOOLEAN,
-  display_order SMALLINT NOT NULL,
+  thumbnail BOOLEAN DEFAULT FALSE,
+  order SMALLINT NOT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (image_uid)
-) PARTITION BY HASH(image_uid);
+  PRIMARY KEY (gallery_id)
+) PARTITION BY HASH(gallery_id);
 
 CREATE TABLE IF NOT EXISTS attributes (
-  attribute_uid UUID DEFAULT uuid_generate_v4(),
-  product_uid UUID REFERENCES products(product_uid),
+  attribute_id UUID DEFAULT uuid_generate_v4(),
   attribute_name VARCHAR(100) NOT NULL,
-  PRIMARY KEY (attribute_uid)
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (attribute_id)
 );
 
-CREATE TABLE IF NOT EXISTS options (
-  option_uid UUID DEFAULT uuid_generate_v4(),
-  attribute_uid UUID REFERENCES attributes(attribute_uid),
-  option_name VARCHAR(100) NOT NULL,
-  additional_price FLOAT NOT NULL,
-  color_hex VARCHAR(50),
-  PRIMARY KEY (option_uid)
+-- Make sure postgres creats individual index for product_id and attribute_id instead on conposite index
+CREATE TABLE IF NOT EXISTS product_attributes (
+  product_id UUID REFERENCES products(product_id),
+  attribute_id REFERENCES attributes(attribute_id),
+  PRIMARY KEY (product_id, attribute_id)
 );
 
-CREATE TABLE IF NOT EXISTS clients (
-  client_uid UUID DEFAULT uuid_generate_v4(),
-  shopping_cart UUID[],
-  first_visit TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (client_uid)
-) PARTITION BY HASH(client_uid);
+CREATE TABLE IF NOT EXISTS attribute_values (
+  attribute_value_id UUID DEFAULT uuid_generate_v4(),
+  attribute_id REFERENCES attributes(attribute_id),
+  attribute_value VARCHAR(255) NOT NULL,
+  meta VARCHAR(255) NOT NULL,
+  is_color BOOLEAN DEFAULT FALSE,
+  PRIMARY KEY (attribute_value_id)
+);
+
+-- Max two variants x & y
+CREATE TABLE IF NOT EXISTS variants (
+  variant_id UUID DEFAULT uuid_generate_v4(),
+  attribute_value_id_x REFERENCES attribute_values(attribute_id),
+  attribute_value_id_y REFERENCES attribute_values(attribute_id),
+  product_id REFERENCES products(product_id),
+  PRIMARY KEY (variant_id)
+);
+
+CREATE TABLE IF NOT EXISTS variant_values (
+  variant_value_id UUID DEFAULT uuid_generate_v4(),
+  variant_id REFERENCES variants(variant_id),
+  price NUMERIC DEFAULT 0,
+  quantity INTEGER DEFAULT 0,
+  PRIMARY KEY (variant_value_id)
+);
 
 CREATE TABLE IF NOT EXISTS customers (
-  customer_uid UUID DEFAULT uuid_generate_v4(),
-  client_uid UUID REFERENCES clients(client_uid),
+  customer_id UUID DEFAULT uuid_generate_v4(),
   first_name VARCHAR(90) NOT NULL,
   last_name VARCHAR(90) NOT NULL,
-  client_address TEXT NOT NULL,
-  zip_code SMALLINT NOT NULL,
-  country VARCHAR(90) NOT NULL,
-  phone_number VARCHAR(100) NOT NULL,
+  customer_address TEXT,
+  zip_code SMALLINT,
+  country VARCHAR(90),
+  city VARCHAR(90),
+  customer_state VARCHAR(90),
+  phone_number VARCHAR(100),
   email TEXT NOT NULL,
-  PRIMARY KEY (customer_uid)
+  password_hash TEXT,
+  registered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  active BOOLEAN DEFAULT TRUE,
+  PRIMARY KEY (customer_id)
 );
 
-CREATE TABLE IF NOT EXISTS orders (
-  order_uid UUID DEFAULT uuid_generate_v4(),
-  product_uid UUID REFERENCES products(product_uid),
-  customer_uid UUID REFERENCES customers(customer_uid),
-  quantity SMALLINT NOT NULL,
-  options UUID[],
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (order_uid)
-  -- for security reasons don't add total price from the frontend get it using product_uid
-  -- isolation level 
+CREATE TABLE IF NOT EXISTS sales_orders (
+  order_id VARCHAR(50),
+  coupon_id INTEGER,
+  customer_id UUID REFERENCES customers(customer_id),
+  order_date TIMESTAMP,
+  total NUMERIC NOT NULL,
+  order_status VARCHAR(50),
+  order_purchase_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  order_approved_at TIMESTAMP,
+  order_delivered_carrier_date TIMESTAMP,
+  order_delivered_customer_date TIMESTAMP,
+  PRIMARY KEY (order_id)
+  -- For security reasons don't add total price from the frontend get it using product_id.
+  -- Use Two-Phase Locking to prevent double booking problem.
+);
+
+CREATE TABLE IF NOT EXISTS order_items (
+  order_item_id UUID DEFAULT uuid_generate_v4(),
+  product_id UUID REFERENCES products(product_id),
+  order_id UUID REFERENCES sales_orders(order_id),
+  order_status VARCHAR(50),
+  price NUMERIC,
+  quantity INTEGER NOT NULL,
+  freight_price NUMERIC,
+  PRIMARY KEY (order_item_id)
+  -- How many unit we sold, one row for each product
 );
 
 CREATE TABLE IF NOT EXISTS sells (
   id UUID DEFAULT uuid_generate_v4(),
   product_uid UUID REFERENCES products(product_uid),
-  price FLOAT NOT NULL,
-  quantity SMALLINT NOT NULL,
+  price NUMERIC NOT NULL,
+  quantity INTEGER NOT NULL,
   PRIMARY KEY (id)
   -- how many unit we sold, one row for each product
 );
@@ -118,23 +160,63 @@ CREATE TABLE IF NOT EXISTS slideshow (
   id UUID DEFAULT uuid_generate_v4(),
   destination_url TEXT,
   image_url TEXT,
-  clicks SMALLINT DEFAULT 0,
+  clicks INTEGER DEFAULT 0,
   PRIMARY KEY (id)
 );
 
 CREATE TABLE IF NOT EXISTS notifications (
-  notification_uid UUID DEFAULT uuid_generate_v4(),
-  account_uid UUID REFERENCES accounts(account_uid),
+  notification_id UUID DEFAULT uuid_generate_v4(),
+  account_id UUID REFERENCES staff_accounts(account_id),
   title VARCHAR(100),
   content TEXT,
   seen BOOLEAN,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   receive_time TIMESTAMP,
   notification_expiry_date DATE,
+  PRIMARY KEY (notification_id)
+);
+
+CREATE TABLE IF NOT EXISTS shopping (
+  shopping_id UUID DEFAULT uuid_generate_v4(),
+  ship_method TEXT,
+  shipper TEXT,
+  ship_charge NUMERIC,
+  ship_date TIMESTAMP,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (notification_uid)
 );
 
--- Functions
+CREATE TABLE IF NOT EXISTS cards (
+  card_id UUID DEFAULT uuid_generate_v4(),
+  customer_id UUID REFERENCES customers(customer_id),
+  PRIMARY KEY (card_id)
+);
+
+CREATE TABLE IF NOT EXISTS card_items (
+  card_item_id UUID DEFAULT uuid_generate_v4(),
+  card_id UUID REFERENCES cards(card_id),
+  product_id UUID REFERENCES products(card_id),
+  quantity INTEGER,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (card_item_id)
+);
+
+CREATE TABLE IF NOT EXISTS coupons (
+  coupon_id UUID SERIAL,
+  code TEXT,
+  coupon_description TEXT,
+  active BOOLEAN,
+  amount NUMERIC,
+  multiple BOOLEAN DEFAULT TRUE,
+  coupon_start_date TIMESTAMP,
+  coupon_end_date TIMESTAMP,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (card_item_id)
+);
+
+
+-- FUNCTIONS --
 
 CREATE OR REPLACE FUNCTION update_timestamp() RETURNS TRIGGER AS $$
 BEGIN
@@ -143,42 +225,79 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
+-- TRIGGERS --
+
 CREATE TRIGGER product_update
   BEFORE UPDATE
   ON products
   FOR EACH ROW
   EXECUTE PROCEDURE update_timestamp();
 
--- Partitions
+CREATE TRIGGER staff_update
+  BEFORE UPDATE
+  ON staff_accounts
+  FOR EACH ROW
+  EXECUTE PROCEDURE update_timestamp();
 
-CREATE TABLE images_part1 PARTITION OF images FOR VALUES WITH (modulus 3, remainder 0);
-CREATE TABLE images_part2 PARTITION OF images FOR VALUES WITH (modulus 3, remainder 1);
-CREATE TABLE images_part3 PARTITION OF images FOR VALUES WITH (modulus 3, remainder 2);
+-- PARTIOTIONS --
 
-CREATE TABLE clients_part1 PARTITION OF clients FOR VALUES WITH (modulus 3, remainder 0);
-CREATE TABLE clients_part2 PARTITION OF clients FOR VALUES WITH (modulus 3, remainder 1);
-CREATE TABLE clients_part3 PARTITION OF clients FOR VALUES WITH (modulus 3, remainder 2);
+CREATE TABLE galleries_part1 PARTITION OF galleries FOR VALUES WITH (modulus 3, remainder 0);
+CREATE TABLE galleries_part2 PARTITION OF galleries FOR VALUES WITH (modulus 3, remainder 1);
+CREATE TABLE galleries_part3 PARTITION OF galleries FOR VALUES WITH (modulus 3, remainder 2);
 
+CREATE TABLE customers_part1 PARTITION OF customers FOR VALUES WITH (modulus 3, remainder 0);
+CREATE TABLE customers_part2 PARTITION OF customers FOR VALUES WITH (modulus 3, remainder 1);
+CREATE TABLE customers_part3 PARTITION OF customers FOR VALUES WITH (modulus 3, remainder 2);
 
--- System Set
+-- INDEXES --
+
+-- products
+CREATE INDEX idx_product_status ON products (product_status);
+
+-- customers
+CREATE INDEX idx_customer_email ON customers (email);
+CREATE INDEX idx_customer_phone_number ON customers (phone_number);
+CREATE INDEX idx_customer_registered_at ON customers (registered_at);
+
+-- galleries 
+CREATE INDEX idx_image_gallery ON galleries (product_id, thumbnail);
+
+-- attribute_values
+CREATE INDEX idx_attribute_values ON attribute_values (attribute_id);
+
+-- variants
+CREATE INDEX idx_attribute_value_id_xy_variants ON variants (attribute_value_id_x, attribute_value_id_y);
+CREATE INDEX idx_product_id_variants ON variants (product_id);
+
+-- sales_orders
+CREATE INDEX idx_sales_order_customer_id ON sales_orders (customer_id);
+
+-- order_items
+CREATE INDEX idx_product_id_order_item ON order_items (product_id);
+CREATE INDEX idx_order_id_order_item ON order_items (order_id);
+
+-- cards
+CREATE INDEX idx_customer_id_card ON cards (customer_id);
+
+-- SYSTEM SET --
 
 -- Tuning PostgreSQL config by hardware check https://pgtune.leopard.in.ua 
--- DB Version: 13
+-- DB Version: 14
 -- OS Type: linux
+-- Total Memory (RAM): 2 GB
 -- DB Type: web
--- Total Memory (RAM): 1 GB
 -- CPUs num: 1
 -- Data Storage: ssd
 
 ALTER SYSTEM SET max_connections = '200';
-ALTER SYSTEM SET shared_buffers = '256MB';
-ALTER SYSTEM SET effective_cache_size = '768MB';
-ALTER SYSTEM SET maintenance_work_mem = '64MB';
+ALTER SYSTEM SET shared_buffers = '512MB';
+ALTER SYSTEM SET effective_cache_size = '1536MB';
+ALTER SYSTEM SET maintenance_work_mem = '128MB';
 ALTER SYSTEM SET checkpoint_completion_target = '0.9';
-ALTER SYSTEM SET wal_buffers = '7864kB';
+ALTER SYSTEM SET wal_buffers = '16MB';
 ALTER SYSTEM SET default_statistics_target = '100';
 ALTER SYSTEM SET random_page_cost = '1.1';
 ALTER SYSTEM SET effective_io_concurrency = '200';
-ALTER SYSTEM SET work_mem = '655kB';
+ALTER SYSTEM SET work_mem = '1310kB';
 ALTER SYSTEM SET min_wal_size = '1GB';
 ALTER SYSTEM SET max_wal_size = '4GB';
