@@ -2,19 +2,8 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- TABLES --
 
-CREATE TABLE IF NOT EXISTS categories (
-  category_id UUID NOT NULL DEFAULT uuid_generate_v4(),
-  parent_id UUID REFERENCES categories (category_id) ON DELETE SET NULL,
-  category_name VARCHAR(70) NOT NULL UNIQUE,
-  category_description TEXT,
-  active BOOLEAN DEFAULT TRUE,
-  icon TEXT,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  PRIMARY KEY (category_id)
-);
-
 CREATE TABLE IF NOT EXISTS staff_accounts (
-  account_id UUID NOT NULL DEFAULT uuid_generate_v4(),
+  id UUID NOT NULL DEFAULT uuid_generate_v4(),
   first_name VARCHAR(100) NOT NULL,
   last_name VARCHAR(100) NOT NULL,
   phone_number VARCHAR(100),
@@ -22,201 +11,281 @@ CREATE TABLE IF NOT EXISTS staff_accounts (
   password_hash TEXT NOT NULL,
   active BOOLEAN DEFAULT TRUE,
   profile_img TEXT,
-  staff_privileges TEXT[],
-  registered_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  PRIMARY KEY (account_id)
+  created_by UUID REFERENCES staff_accounts(id),
+  updated_by UUID REFERENCES staff_accounts(id),
+  PRIMARY KEY (id)
+);
+
+CREATE TABLE IF NOT EXISTS categories (
+  id UUID NOT NULL DEFAULT uuid_generate_v4(),
+  parent_id UUID REFERENCES categories (id) ON DELETE SET NULL,
+  category_name VARCHAR(255) NOT NULL UNIQUE,
+  category_description TEXT,
+  active BOOLEAN DEFAULT TRUE,
+  icon TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  created_by UUID REFERENCES staff_accounts(id),
+  updated_by UUID REFERENCES staff_accounts(id),
+  PRIMARY KEY (id)
 );
 
 CREATE TABLE IF NOT EXISTS products (
-  product_id UUID NOT NULL DEFAULT uuid_generate_v4(),
-  title TEXT NOT NULL,
-  regular_price NUMERIC CHECK (regular_price > 0),
+  id UUID NOT NULL DEFAULT uuid_generate_v4(),
+  product_name VARCHAR(255) NOT NULL,
+  SKU VARCHAR(255),
+  regular_price NUMERIC DEFAULT 0,
   discount_price NUMERIC DEFAULT 0,
-  product_description TEXT NOT NULL,
-  short_description VARCHAR(165) NOT NULL,
   quantity INTEGER DEFAULT 0,
+  short_description VARCHAR(165) NOT NULL,
+  product_description TEXT NOT NULL,
   product_weight NUMERIC,
-  product_note TEXT,
   published BOOLEAN DEFAULT TRUE,
+  product_note VARCHAR(255),
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  CHECK (regular_price > discount_price),
-  PRIMARY KEY (product_id)
+  created_by UUID REFERENCES staff_accounts(id),
+  updated_by UUID REFERENCES staff_accounts(id),
+  CHECK (regular_price >= discount_price),
+  PRIMARY KEY (id)
 );
 
 CREATE TABLE IF NOT EXISTS product_categories (
-  product_id UUID REFERENCES products(product_id),
-  category_id UUID REFERENCES categories(category_id),
+  product_id UUID REFERENCES products(id),
+  category_id UUID REFERENCES categories(id),
   PRIMARY KEY (product_id, category_id)
 );
 
 CREATE TABLE IF NOT EXISTS galleries (
-  gallery_id UUID NOT NULL DEFAULT uuid_generate_v4(),
-  product_id UUID REFERENCES products(product_id),
+  id UUID NOT NULL DEFAULT uuid_generate_v4(),
+  product_id UUID REFERENCES products(id),
   image_path TEXT NOT NULL,
   thumbnail BOOLEAN DEFAULT FALSE,
   display_order SMALLINT NOT NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  PRIMARY KEY (gallery_id)
-) PARTITION BY HASH(gallery_id);
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  created_by UUID REFERENCES staff_accounts(id),
+  updated_by UUID REFERENCES staff_accounts(id),
+  PRIMARY KEY (id)
+) PARTITION BY HASH(id);
 
 CREATE TABLE IF NOT EXISTS attributes (
-  attribute_id UUID NOT NULL DEFAULT uuid_generate_v4(),
-  attribute_name VARCHAR(100) NOT NULL,
+  id UUID NOT NULL DEFAULT uuid_generate_v4(),
+  attribute_name VARCHAR(255) NOT NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  PRIMARY KEY (attribute_id)
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  created_by UUID REFERENCES staff_accounts(id),
+  updated_by UUID REFERENCES staff_accounts(id),
+  PRIMARY KEY (id)
 );
 
--- Make sure postgres creats individual index for product_id and attribute_id instead on conposite index
+-- Make sure postgres creats individual index for product.id and attribute.id instead on conposite index
 CREATE TABLE IF NOT EXISTS product_attributes (
-  product_id UUID REFERENCES products(product_id),
-  attribute_id UUID REFERENCES attributes(attribute_id),
+  product_id UUID REFERENCES products(id),
+  attribute_id UUID REFERENCES attributes(id),
   PRIMARY KEY (product_id, attribute_id)
 );
 
 CREATE TABLE IF NOT EXISTS attribute_values (
-  attribute_value_id UUID NOT NULL DEFAULT uuid_generate_v4(),
-  attribute_id UUID REFERENCES attributes(attribute_id),
+  id UUID NOT NULL DEFAULT uuid_generate_v4(),
+  attribute_id UUID REFERENCES attributes(id),
   attribute_value VARCHAR(255) NOT NULL,
   color VARCHAR(50) DEFAULT NULL,
-  PRIMARY KEY (attribute_value_id)
+  PRIMARY KEY (id)
 );
 
 CREATE TABLE IF NOT EXISTS variant_attribute_values (
-  variant_attribute_value_id UUID NOT NULL DEFAULT uuid_generate_v4(),
-  attribute_value_id UUID REFERENCES attribute_values(attribute_value_id),
-  PRIMARY KEY (variant_attribute_value_id)
+  id UUID NOT NULL DEFAULT uuid_generate_v4(),
+  attribute_value_id UUID REFERENCES attribute_values(id),
+  PRIMARY KEY (id)
 );
 
 CREATE TABLE IF NOT EXISTS variants (
-  variant_id UUID NOT NULL DEFAULT uuid_generate_v4(),
-  variant_attribute_value_id UUID REFERENCES variant_attribute_values(variant_attribute_value_id),
-  product_id UUID REFERENCES products(product_id),
-  PRIMARY KEY (variant_id)
+  id UUID NOT NULL DEFAULT uuid_generate_v4(),
+  variant_attribute_value_id UUID REFERENCES variant_attribute_values(id),
+  product_id UUID REFERENCES products(id),
+  PRIMARY KEY (id)
 );
 
 CREATE TABLE IF NOT EXISTS variant_values (
-  variant_value_id UUID NOT NULL DEFAULT uuid_generate_v4(),
-  variant_id UUID REFERENCES variants(variant_id),
+  id UUID NOT NULL DEFAULT uuid_generate_v4(),
+  variant_id UUID REFERENCES variants(id),
   price NUMERIC DEFAULT 0,
   quantity INTEGER DEFAULT 0,
-  PRIMARY KEY (variant_value_id)
+  PRIMARY KEY (id)
 );
 
 CREATE TABLE IF NOT EXISTS customers (
-  customer_id UUID NOT NULL DEFAULT uuid_generate_v4(),
-  first_name VARCHAR(90) NOT NULL,
-  last_name VARCHAR(90) NOT NULL,
-  customer_address TEXT,
-  zip_code SMALLINT,
-  country VARCHAR(90),
-  city VARCHAR(90),
-  customer_state VARCHAR(90),
-  phone_number VARCHAR(100),
+  id UUID NOT NULL DEFAULT uuid_generate_v4(),
+  first_name VARCHAR(100) NOT NULL,
+  last_name VARCHAR(100) NOT NULL,
+  phone_number VARCHAR(255),
   email TEXT NOT NULL UNIQUE,
-  password_hash TEXT,
+  password_hash TEXT NOT NULL ,
+  active BOOLEAN DEFAULT TRUE,
   registered_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  active BOOLEAN DEFAULT TRUE,
-  PRIMARY KEY (customer_id)
+  PRIMARY KEY (id)
 );
 
-CREATE TABLE IF NOT EXISTS sales_orders (
-  order_id VARCHAR(50) NOT NULL,
-  coupon_id INTEGER,
-  customer_id UUID REFERENCES customers(customer_id),
-  order_date TIMESTAMPTZ,
-  total NUMERIC NOT NULL,
-  order_status VARCHAR(50),
-  order_purchase_timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+CREATE TABLE IF NOT EXISTS customer_addresses (
+  id UUID NOT NULL DEFAULT uuid_generate_v4(),
+  customer_id UUID REFERENCES customers(id),
+  address_line1 TEXT NOT NULL,
+  address_line2 TEXT,
+  phone_number VARCHAR(255) NOT NULL,
+  country VARCHAR(255) DEFAULT 'Morocco',
+  postal_code VARCHAR(255) NOT NULL,
+  city VARCHAR(255) NOT NULL,
+  PRIMARY KEY (id)
+);
+
+CREATE TABLE IF NOT EXISTS roles (
+  id SERIAL NOT NULL,
+  role_name VARCHAR(255) NOT NULL,
+  privileges TEXT[],
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  created_by UUID REFERENCES staff_accounts(id),
+  updated_by UUID REFERENCES staff_accounts(id),
+  PRIMARY KEY (id)
+);
+
+CREATE TABLE IF NOT EXISTS staff_roles (
+  staff_id UUID REFERENCES staff_accounts(id) ON DELETE SET NULL,
+  role_id INTEGER REFERENCES roles(id) ON DELETE SET NULL,
+  PRIMARY KEY (staff_id, role_id)
+);
+
+CREATE TABLE IF NOT EXISTS coupons (
+  id SERIAL NOT NULL,
+  code VARCHAR(50),
+  coupon_description TEXT,
+  amount NUMERIC,
+  multiple BOOLEAN DEFAULT TRUE,
+  active BOOLEAN DEFAULT TRUE,
+  coupon_start_date TIMESTAMP,
+  coupon_end_date TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  created_by UUID REFERENCES staff_accounts(id),
+  updated_by UUID REFERENCES staff_accounts(id),
+  PRIMARY KEY (id)
+);
+
+CREATE TABLE IF NOT EXISTS order_statuses (
+  id SERIAL NOT NULL,
+  status_name VARCHAR(255) NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  created_by UUID REFERENCES staff_accounts(id),
+  updated_by UUID REFERENCES staff_accounts(id),
+  PRIMARY KEY (id)
+);
+
+CREATE TABLE IF NOT EXISTS orders (
+  id VARCHAR(50) NOT NULL,
+  coupon_id INTEGER REFERENCES coupons(id) ON DELETE SET NULL,
+  customer_id UUID REFERENCES customers(id),
+  order_status_id INTEGER REFERENCES order_statuses(id) ON DELETE SET NULL,
   order_approved_at TIMESTAMPTZ,
   order_delivered_carrier_date TIMESTAMPTZ,
   order_delivered_customer_date TIMESTAMPTZ,
-  PRIMARY KEY (order_id)
-  -- Use Two-Phase Locking to prevent double booking problem.
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_by UUID REFERENCES staff_accounts(id),
+  PRIMARY KEY (id)
+  -- It's better to use Two-Phase Locking inside your transaction (SELECT ... FOR UPDATE) to prevent double booking problems for this table.
+);
+
+CREATE TABLE IF NOT EXISTS shippings (
+  id SERIAL NOT NULL,
+  ship_method TEXT,
+  shipper TEXT NOT NULL,
+  shipper_icon_path TEXT,
+  ship_charge NUMERIC,
+  ship_date TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  created_by UUID REFERENCES staff_accounts(id),
+  updated_by UUID REFERENCES staff_accounts(id),
+  PRIMARY KEY (id)
 );
 
 CREATE TABLE IF NOT EXISTS order_items (
-  order_item_id UUID NOT NULL DEFAULT uuid_generate_v4(),
-  product_id UUID REFERENCES products(product_id),
-  order_id VARCHAR(50) REFERENCES sales_orders(order_id),
-  order_status VARCHAR(50),
+  id UUID NOT NULL DEFAULT uuid_generate_v4(),
+  product_id UUID REFERENCES products(id),
+  order_id VARCHAR(50) REFERENCES orders(id),
   price NUMERIC NOT NULL,
   quantity INTEGER NOT NULL,
-  freight_price NUMERIC DEFAULT 0,
-  PRIMARY KEY (order_item_id)
-  -- For security reasons don't add total price from the frontend get it using product_id.
+  shipping_id INTEGER REFERENCES shippings(id) ON DELETE SET NULL,
+  PRIMARY KEY (id)
+  -- For security reasons don't add total price from the frontend get it using product.id in the backend.
 );
 
 CREATE TABLE IF NOT EXISTS sells (
-  id UUID NOT NULL DEFAULT uuid_generate_v4(),
-  product_id UUID UNIQUE REFERENCES products(product_id),
+  id SERIAL NOT NULL,
+  product_id UUID UNIQUE REFERENCES products(id),
   price NUMERIC NOT NULL, -- increment (product price may change)
   quantity INTEGER NOT NULL,
   PRIMARY KEY (id)
   -- How many unit we sold, one row for each product
 );
 
-CREATE TABLE IF NOT EXISTS slideshow (
-  id UUID NOT NULL DEFAULT uuid_generate_v4(),
+CREATE TABLE IF NOT EXISTS slideshows (
+  id SERIAL NOT NULL,
   destination_url TEXT,
   image_url TEXT,
   clicks INTEGER DEFAULT 0,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  created_by UUID REFERENCES staff_accounts(id),
+  updated_by UUID REFERENCES staff_accounts(id),
   PRIMARY KEY (id)
 );
 
 CREATE TABLE IF NOT EXISTS notifications (
-  notification_id UUID NOT NULL DEFAULT uuid_generate_v4(),
-  account_id UUID REFERENCES staff_accounts(account_id),
+  id SERIAL NOT NULL,
+  account_id UUID REFERENCES staff_accounts(id),
   title VARCHAR(100),
   content TEXT,
   seen BOOLEAN,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   receive_time TIMESTAMPTZ,
   notification_expiry_date DATE,
-  PRIMARY KEY (notification_id)
-);
-
-CREATE TABLE IF NOT EXISTS shopping (
-  shopping_id UUID NOT NULL DEFAULT uuid_generate_v4(),
-  ship_method TEXT,
-  shipper TEXT,
-  ship_charge NUMERIC,
-  ship_date TIMESTAMPTZ,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  PRIMARY KEY (shopping_id)
+  PRIMARY KEY (id)
 );
 
 CREATE TABLE IF NOT EXISTS cards (
-  card_id UUID NOT NULL DEFAULT uuid_generate_v4(),
-  customer_id UUID REFERENCES customers(customer_id),
-  PRIMARY KEY (card_id)
+  id UUID NOT NULL DEFAULT uuid_generate_v4(),
+  customer_id UUID REFERENCES customers(id),
+  PRIMARY KEY (id)
 );
 
 CREATE TABLE IF NOT EXISTS card_items (
-  card_item_id UUID NOT NULL DEFAULT uuid_generate_v4(),
-  card_id UUID REFERENCES cards(card_id),
-  product_id UUID REFERENCES products(product_id),
-  quantity INTEGER,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  PRIMARY KEY (card_item_id)
+  id UUID NOT NULL DEFAULT uuid_generate_v4(),
+  card_id UUID REFERENCES cards(id),
+  product_id UUID REFERENCES products(id),
+  quantity INTEGER DEFAULT 1,
+  PRIMARY KEY (id)
 );
 
-CREATE TABLE IF NOT EXISTS coupons (
-  coupon_id SERIAL NOT NULL,
-  code TEXT,
-  coupon_description TEXT,
-  active BOOLEAN,
-  amount NUMERIC,
-  multiple BOOLEAN DEFAULT TRUE,
-  coupon_start_date TIMESTAMP,
-  coupon_end_date TIMESTAMPTZ,
+CREATE TABLE IF NOT EXISTS tags (
+  id SERIAL NOT NULL,
+  tag_name VARCHAR(255) NOT NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  PRIMARY KEY (coupon_id)
+  created_by UUID REFERENCES staff_accounts(id),
+  updated_by UUID REFERENCES staff_accounts(id),
+  PRIMARY KEY (id)
 );
 
+CREATE TABLE IF NOT EXISTS product_tags (
+  tag_id INTEGER REFERENCES tags(id),
+  product_id UUID REFERENCES products(id),
+  PRIMARY KEY (tag_id, product_id)
+);
 
 -- FUNCTIONS --
 
@@ -228,6 +297,21 @@ END;
 $$ language 'plpgsql';
 
 -- TRIGGERS --
+
+CREATE TRIGGER category_set_update
+  BEFORE UPDATE ON categories
+  FOR EACH ROW
+  EXECUTE PROCEDURE update_at_timestamp();
+
+CREATE TRIGGER gallery_set_update
+  BEFORE UPDATE ON galleries
+  FOR EACH ROW
+  EXECUTE PROCEDURE update_at_timestamp();
+
+CREATE TRIGGER attribute_set_update
+  BEFORE UPDATE ON attributes
+  FOR EACH ROW
+  EXECUTE PROCEDURE update_at_timestamp();
 
 CREATE TRIGGER product_set_update
   BEFORE UPDATE ON products
@@ -249,6 +333,41 @@ CREATE TRIGGER customer_set_update
   FOR EACH ROW
   EXECUTE PROCEDURE update_at_timestamp();
 
+CREATE TRIGGER role_set_update
+  BEFORE UPDATE ON roles
+  FOR EACH ROW
+  EXECUTE PROCEDURE update_at_timestamp();
+
+CREATE TRIGGER order_set_update
+  BEFORE UPDATE ON orders
+  FOR EACH ROW
+  EXECUTE PROCEDURE update_at_timestamp();
+
+CREATE TRIGGER slideshow_set_update
+  BEFORE UPDATE ON slideshows
+  FOR EACH ROW
+  EXECUTE PROCEDURE update_at_timestamp();
+
+CREATE TRIGGER notification_set_update
+  BEFORE UPDATE ON notifications
+  FOR EACH ROW
+  EXECUTE PROCEDURE update_at_timestamp();
+
+CREATE TRIGGER shipping_set_update
+  BEFORE UPDATE ON shippings
+  FOR EACH ROW
+  EXECUTE PROCEDURE update_at_timestamp();
+
+CREATE TRIGGER tag_set_update
+  BEFORE UPDATE ON tags
+  FOR EACH ROW
+  EXECUTE PROCEDURE update_at_timestamp();
+
+CREATE TRIGGER order_statuse_set_update
+  BEFORE UPDATE ON order_statuses
+  FOR EACH ROW
+  EXECUTE PROCEDURE update_at_timestamp();
+
 -- PARTIOTIONS --
 
 CREATE TABLE galleries_part1 PARTITION OF galleries FOR VALUES WITH (modulus 3, remainder 0);
@@ -258,7 +377,7 @@ CREATE TABLE galleries_part3 PARTITION OF galleries FOR VALUES WITH (modulus 3, 
 -- INDEXES --
 
 -- products
-CREATE INDEX idx_product_id_publish ON products (product_id, published);
+CREATE INDEX idx_product_id_publish ON products (id, published);
 
 -- customers
 CREATE INDEX idx_customer_email ON customers (email);
@@ -274,8 +393,8 @@ CREATE INDEX idx_attribute_values ON attribute_values (attribute_id);
 -- variants
 CREATE INDEX idx_product_id_variants ON variants (product_id);
 
--- sales_orders
-CREATE INDEX idx_sales_order_customer_id ON sales_orders (customer_id);
+-- orders
+CREATE INDEX idx_order_customer_id ON orders (customer_id);
 
 -- order_items
 CREATE INDEX idx_product_id_order_item ON order_items (product_id);
@@ -290,14 +409,21 @@ WITH att_id AS (INSERT INTO attributes (attribute_name) VALUES ('color'), ('size
 
 INSERT INTO attribute_values (attribute_id, attribute_value, color) 
 VALUES 
-((SELECT attribute_id FROM att_id WHERE attribute_name = 'color'), 'black', '#000'), 
-((SELECT attribute_id FROM att_id WHERE attribute_name = 'color'), 'white', '#FFF'), 
-((SELECT attribute_id FROM att_id WHERE attribute_name = 'color'), 'red', '#FF0000'), 
-((SELECT attribute_id FROM att_id WHERE attribute_name = 'size'), 'S', null), 
-((SELECT attribute_id FROM att_id WHERE attribute_name = 'size'), 'M', null), 
-((SELECT attribute_id FROM att_id WHERE attribute_name = 'size'), 'L', null), 
-((SELECT attribute_id FROM att_id WHERE attribute_name = 'size'), 'XL', null);
+((SELECT id FROM att_id WHERE attribute_name = 'color'), 'black', '#000'), 
+((SELECT id FROM att_id WHERE attribute_name = 'color'), 'white', '#FFF'), 
+((SELECT id FROM att_id WHERE attribute_name = 'color'), 'red', '#FF0000'), 
+((SELECT id FROM att_id WHERE attribute_name = 'size'), 'S', null), 
+((SELECT id FROM att_id WHERE attribute_name = 'size'), 'M', null), 
+((SELECT id FROM att_id WHERE attribute_name = 'size'), 'L', null), 
+((SELECT id FROM att_id WHERE attribute_name = 'size'), 'XL', null);
 
+INSERT INTO order_statuses (status_name) VALUES 
+       ('Order Received'), ('Order Processing'), ('At Local Facility'), ('Out For Delivery'),
+       ('Falied To Contact Consignee'), ('Shipment Refused By Consignee'), ('Delivered');
+
+INSERT INTO roles (role_name, privileges) VALUES 
+       ('Admin', ARRAY['has_read_privilege', 'has_create_privilege', 'has_update_privilege', 'has_delete_privilege', 'has_admin_privilege']),
+       ('Reader', ARRAY['has_read_privilege']), ('Editor', ARRAY['has_read_privilege', 'has_update_privilege', 'has_delete_privilege']);
 
 -- Configuration --
 
