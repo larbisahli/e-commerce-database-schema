@@ -49,8 +49,8 @@ CREATE TABLE IF NOT EXISTS products (
   PRIMARY KEY (id)
 );
 CREATE TABLE IF NOT EXISTS product_categories (
-  product_id UUID REFERENCES products(id),
-  category_id UUID REFERENCES categories(id),
+  product_id UUID REFERENCES products(id) ON DELETE SET NULL,
+  category_id UUID REFERENCES categories(id) ON DELETE SET NULL,
   PRIMARY KEY (product_id, category_id)
 );
 CREATE TABLE IF NOT EXISTS galleries (
@@ -76,8 +76,8 @@ CREATE TABLE IF NOT EXISTS attributes (
 );
 -- Make sure postgres creats individual index for product.id and attribute.id instead on conposite index
 CREATE TABLE IF NOT EXISTS product_attributes (
-  product_id UUID REFERENCES products(id),
-  attribute_id UUID REFERENCES attributes(id),
+  product_id UUID REFERENCES products(id) ON DELETE SET NULL,
+  attribute_id UUID REFERENCES attributes(id) ON DELETE SET NULL,
   PRIMARY KEY (product_id, attribute_id)
 );
 CREATE TABLE IF NOT EXISTS attribute_values (
@@ -147,9 +147,11 @@ CREATE TABLE IF NOT EXISTS coupons (
   id SERIAL NOT NULL,
   code VARCHAR(50),
   coupon_description TEXT,
-  amount NUMERIC,
-  multiple BOOLEAN DEFAULT TRUE,
-  active BOOLEAN DEFAULT TRUE,
+  discount_value NUMERIC,
+  discount_type VARCHAR(50) DEFAULT 'percentage',
+  image_path TEXT,
+  times_used NUMERIC DEFAULT 0,
+  max_usage NUMERIC DEFAULT null,
   coupon_start_date TIMESTAMP,
   coupon_end_date TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -158,9 +160,18 @@ CREATE TABLE IF NOT EXISTS coupons (
   updated_by UUID REFERENCES staff_accounts(id),
   PRIMARY KEY (id)
 );
+
+CREATE TABLE IF NOT EXISTS product_coupons (
+  product_id UUID REFERENCES products(id) ON DELETE SET NULL,
+  coupon_id INTEGER REFERENCES coupons(id) ON DELETE SET NULL,
+  PRIMARY KEY (product_id, coupon_id)
+);
+
 CREATE TABLE IF NOT EXISTS order_statuses (
   id SERIAL NOT NULL,
   status_name VARCHAR(255) NOT NULL,
+  color VARCHAR(50) NOT NULL,
+  privacy VARCHAR(50) DEFAULT 'private'
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   created_by UUID REFERENCES staff_accounts(id),
@@ -325,14 +336,14 @@ INSERT INTO attribute_values (attribute_id, attribute_value, color) VALUES
   (( SELECT id FROM att_id WHERE attribute_name = 'size'),'L', null),
   (( SELECT id FROM att_id WHERE attribute_name = 'size'), 'XL', null);
   
-INSERT INTO order_statuses (status_name) VALUES
-  ('Order Received'),
-  ('Order Processing'),
-  ('At Local Facility'),
-  ('Out For Delivery'),
-  ('Falied To Contact Consignee'),
-  ('Shipment Refused By Consignee'),
-  ('Delivered');
+INSERT INTO order_statuses (status_name, color, privacy) VALUES
+  ('Complete', '#5ae510','public'),
+  ('Processing', '#ffe224', 'public'),
+  ('Pending', '#20b9df', 'public'),
+  ('On Hold', '#d6d6d6', 'public'),
+  ('Shipped', '#71f9f7', 'public'),
+  ('Cancelled', '#FD9F3D ', 'public'),
+  ('Faild', '#FF532F', 'private');
   
 INSERT INTO roles (role_name, privileges) VALUES
   ( 'Admin', ARRAY ['read_privilege', 'create_privilege', 'update_privilege', 'delete_privilege', 'super_admin_privilege']),
