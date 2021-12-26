@@ -1,7 +1,7 @@
 
 ### Database Diagram:
 
-<p align="center"><img src="db-diagram.png" width="80%"/></p>
+<p align="center"><img src="db_diagram.png" width="80%"/></p>
 
 ### pgadmin ssh:
 
