@@ -7,6 +7,11 @@ set -e
 # \c <database>  --to connect to a different database
 # Copy init.sql file to a docker volume in /var/lib/data/init.sql to gain access to init.sql inside the container.
 
+# -- Grant usage the schema
+# Schemas and Privileges. By default, users cannot access any objects in schemas they do not own. To allow that, the owner of the schema must grant the USAGE privilege on the schema. To allow users to make use of the objects in the schema, additional privileges might need to be granted, as appropriate for the object.
+
+# \z mytable from psql gives you all the grants from a table.
+
 psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-EOSQL
     ALTER DATABASE $POSTGRES_DB SET TIMEZONE TO 'Africa/Casablanca';
 
@@ -40,3 +45,4 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-E
     GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO $POSTGRES_DELETE_USER;
     GRANT USAGE, SELECT, UPDATE ON ALL SEQUENCES IN SCHEMA public TO $POSTGRES_CRUD_USER;
 EOSQL
+
