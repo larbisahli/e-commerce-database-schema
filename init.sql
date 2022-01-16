@@ -1,7 +1,16 @@
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 -- TABLES --
+
+CREATE TABLE IF NOT EXISTS roles (
+  id SERIAL NOT NULL,
+  role_name VARCHAR(255) NOT NULL,
+  privileges TEXT [],
+  PRIMARY KEY (id)
+);
+
 CREATE TABLE IF NOT EXISTS staff_accounts (
   id UUID NOT NULL DEFAULT uuid_generate_v4(),
+  role_id INTEGER REFERENCES roles(id) ON DELETE SET NULL,
   first_name VARCHAR(100) NOT NULL,
   last_name VARCHAR(100) NOT NULL,
   phone_number VARCHAR(100) DEFAULT NULL,
@@ -15,6 +24,7 @@ CREATE TABLE IF NOT EXISTS staff_accounts (
   updated_by UUID REFERENCES staff_accounts(id),
   PRIMARY KEY (id)
 );
+
 CREATE TABLE IF NOT EXISTS categories (
   id UUID NOT NULL DEFAULT uuid_generate_v4(),
   parent_id UUID REFERENCES categories (id) ON DELETE SET NULL,
@@ -29,6 +39,7 @@ CREATE TABLE IF NOT EXISTS categories (
   updated_by UUID REFERENCES staff_accounts(id),
   PRIMARY KEY (id)
 );
+
 CREATE TABLE IF NOT EXISTS products (
   id UUID NOT NULL DEFAULT uuid_generate_v4(),
   product_name VARCHAR(255) NOT NULL,
@@ -48,11 +59,13 @@ CREATE TABLE IF NOT EXISTS products (
   CHECK (regular_price >= discount_price),
   PRIMARY KEY (id)
 );
+
 CREATE TABLE IF NOT EXISTS product_categories (
   product_id UUID REFERENCES products(id) ON DELETE SET NULL,
   category_id UUID REFERENCES categories(id) ON DELETE SET NULL,
   PRIMARY KEY (product_id, category_id)
 );
+
 CREATE TABLE IF NOT EXISTS galleries (
   id UUID NOT NULL DEFAULT uuid_generate_v4(),
   product_id UUID REFERENCES products(id),
@@ -65,6 +78,7 @@ CREATE TABLE IF NOT EXISTS galleries (
   updated_by UUID REFERENCES staff_accounts(id),
   PRIMARY KEY (id)
 ) PARTITION BY HASH(id);
+
 CREATE TABLE IF NOT EXISTS attributes (
   id UUID NOT NULL DEFAULT uuid_generate_v4(),
   attribute_name VARCHAR(255) NOT NULL,
@@ -74,12 +88,14 @@ CREATE TABLE IF NOT EXISTS attributes (
   updated_by UUID REFERENCES staff_accounts(id),
   PRIMARY KEY (id)
 );
+
 -- Make sure postgres creats individual index for product.id and attribute.id instead on conposite index
 CREATE TABLE IF NOT EXISTS product_attributes (
   product_id UUID REFERENCES products(id) ON DELETE SET NULL,
   attribute_id UUID REFERENCES attributes(id) ON DELETE SET NULL,
   PRIMARY KEY (product_id, attribute_id)
 );
+
 CREATE TABLE IF NOT EXISTS attribute_values (
   id UUID NOT NULL DEFAULT uuid_generate_v4(),
   attribute_id UUID REFERENCES attributes(id),
@@ -87,17 +103,20 @@ CREATE TABLE IF NOT EXISTS attribute_values (
   color VARCHAR(50) DEFAULT NULL,
   PRIMARY KEY (id)
 );
+
 CREATE TABLE IF NOT EXISTS variant_attribute_values (
   id UUID NOT NULL DEFAULT uuid_generate_v4(),
   attribute_value_id UUID REFERENCES attribute_values(id),
   PRIMARY KEY (id)
 );
+
 CREATE TABLE IF NOT EXISTS variants (
   id UUID NOT NULL DEFAULT uuid_generate_v4(),
   variant_attribute_value_id UUID REFERENCES variant_attribute_values(id),
   product_id UUID REFERENCES products(id),
   PRIMARY KEY (id)
 );
+
 CREATE TABLE IF NOT EXISTS variant_values (
   id UUID NOT NULL DEFAULT uuid_generate_v4(),
   variant_id UUID REFERENCES variants(id),
@@ -105,6 +124,7 @@ CREATE TABLE IF NOT EXISTS variant_values (
   quantity INTEGER DEFAULT 0,
   PRIMARY KEY (id)
 );
+
 CREATE TABLE IF NOT EXISTS customers (
   id UUID NOT NULL DEFAULT uuid_generate_v4(),
   first_name VARCHAR(100) NOT NULL,
@@ -117,6 +137,7 @@ CREATE TABLE IF NOT EXISTS customers (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   PRIMARY KEY (id)
 );
+
 CREATE TABLE IF NOT EXISTS customer_addresses (
   id UUID NOT NULL DEFAULT uuid_generate_v4(),
   customer_id UUID REFERENCES customers(id),
@@ -128,31 +149,16 @@ CREATE TABLE IF NOT EXISTS customer_addresses (
   city VARCHAR(255) NOT NULL,
   PRIMARY KEY (id)
 );
-CREATE TABLE IF NOT EXISTS roles (
-  id SERIAL NOT NULL,
-  role_name VARCHAR(255) NOT NULL,
-  privileges TEXT [],
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  created_by UUID REFERENCES staff_accounts(id),
-  updated_by UUID REFERENCES staff_accounts(id),
-  PRIMARY KEY (id)
-);
-CREATE TABLE IF NOT EXISTS staff_roles (
-  staff_id UUID REFERENCES staff_accounts(id) ON DELETE SET NULL,
-  role_id INTEGER REFERENCES roles(id) ON DELETE SET NULL,
-  PRIMARY KEY (staff_id, role_id)
-);
+
 CREATE TABLE IF NOT EXISTS coupons (
   id SERIAL NOT NULL,
   code VARCHAR(50),
   coupon_description TEXT,
   discount_value NUMERIC,
-  discount_type VARCHAR(50) DEFAULT 'percentage',
-  image_path TEXT,
+  discount_type VARCHAR(50) NOT NULL,
   times_used NUMERIC DEFAULT 0,
   max_usage NUMERIC DEFAULT null,
-  coupon_start_date TIMESTAMP,
+  coupon_start_date TIMESTAMPTZ,
   coupon_end_date TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -190,18 +196,26 @@ CREATE TABLE IF NOT EXISTS orders (
   updated_by UUID REFERENCES staff_accounts(id),
   PRIMARY KEY (id) -- It's better to use Two-Phase Locking inside your transaction (SELECT ... FOR UPDATE) to prevent double booking problems for this table.
 );
+
 CREATE TABLE IF NOT EXISTS shippings (
   id SERIAL NOT NULL,
-  ship_method TEXT,
-  shipper TEXT NOT NULL,
+  shipper_name TEXT,
+  active BOOLEAN DEFAULT TRUE,
   shipper_icon_path TEXT,
-  ship_charge NUMERIC,
-  ship_date TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   created_by UUID REFERENCES staff_accounts(id),
   updated_by UUID REFERENCES staff_accounts(id),
   PRIMARY KEY (id)
+);
+
+CREATE TABLE IF NOT EXISTS product_shippings (
+  shipping_id INTEGER REFERENCES shippings(id),
+  product_id UUID REFERENCES products(id),
+  ship_charge NUMERIC,
+  free BOOLEAN,
+  estimated_days NUMERIC,
+  PRIMARY KEY (shipping_id, product_id)
 );
 CREATE TABLE IF NOT EXISTS order_items (
   id UUID NOT NULL DEFAULT uuid_generate_v4(),
@@ -275,16 +289,6 @@ RETURN NEW;
   END;
   $ $ language 'plpgsql';
 
-CREATE OR REPLACE FUNCTION blacklist_category_children(blacklist UUID[]) RETURNS TABLE (
-	   	id UUID,
-	    category_name VARCHAR(255)
-	)  AS $BODY$
-
-BEGIN 
-  RETURN QUERY (SELECT cate.id, cate.category_name FROM categories AS cate WHERE cate.id != ALL(blacklist));
-  END; $BODY$
-LANGUAGE plpgsql;
-
 -- TRIGGERS --
 CREATE TRIGGER category_set_update BEFORE UPDATE ON categories FOR EACH ROW EXECUTE PROCEDURE update_at_timestamp();
 CREATE TRIGGER gallery_set_update BEFORE UPDATE ON galleries FOR EACH ROW EXECUTE PROCEDURE update_at_timestamp();
@@ -293,7 +297,6 @@ CREATE TRIGGER product_set_update BEFORE UPDATE ON products FOR EACH ROW EXECUTE
 CREATE TRIGGER staff_set_update BEFORE UPDATE ON staff_accounts FOR EACH ROW EXECUTE PROCEDURE update_at_timestamp();
 CREATE TRIGGER coupon_set_update BEFORE UPDATE ON coupons FOR EACH ROW EXECUTE PROCEDURE update_at_timestamp();
 CREATE TRIGGER customer_set_update BEFORE UPDATE ON customers FOR EACH ROW EXECUTE PROCEDURE update_at_timestamp();
-CREATE TRIGGER role_set_update BEFORE UPDATE ON roles FOR EACH ROW EXECUTE PROCEDURE update_at_timestamp();
 CREATE TRIGGER order_set_update BEFORE UPDATE ON orders FOR EACH ROW EXECUTE PROCEDURE update_at_timestamp();
 CREATE TRIGGER slideshow_set_update BEFORE UPDATE ON slideshows FOR EACH ROW EXECUTE PROCEDURE update_at_timestamp();
 CREATE TRIGGER notification_set_update BEFORE UPDATE ON notifications FOR EACH ROW EXECUTE PROCEDURE update_at_timestamp();
@@ -345,10 +348,12 @@ INSERT INTO order_statuses (status_name, color, privacy) VALUES
   ('Cancelled', '#FD9F3D ', 'public'),
   ('Faild', '#FF532F', 'private');
   
-INSERT INTO roles (role_name, privileges) VALUES
-  ( 'Admin', ARRAY ['read_privilege', 'create_privilege', 'update_privilege', 'delete_privilege', 'super_admin_privilege']),
-  ('Guest', ARRAY ['read_privilege']),
-  ('Editor', ARRAY ['read_privilege', 'update_privilege', 'update_privilege', 'delete_privilege']);
+INSERT INTO roles (id, role_name, privileges) VALUES
+  (1, 'Store Administrator', ARRAY ['super_admin_privilege', 'admin_read_privilege', 'admin_create_privilege', 'admin_update_privilege', 'admin_delete_privilege', 'staff_read_privilege', 'staff_create_privilege', 'staff_update_privilege', 'staff_delete_privilege']),
+  (2, 'Sales Manager', ARRAY ['admin_read_privilege', 'admin_create_privilege', 'admin_update_privilege', 'admin_delete_privilege', 'staff_read_privilege', 'staff_create_privilege', 'staff_update_privilege', 'staff_delete_privilege']),
+  (3, 'Sales Staff', ARRAY ['staff_read_privilege', 'staff_create_privilege', 'staff_update_privilege', 'staff_delete_privilege']),
+  (4, 'Guest', ARRAY ['staff_read_privilege']),
+  (5, 'Investor', ARRAY ['admin_read_privilege', 'staff_read_privilege']);
 
 INSERT INTO tags (tag_name, icon) VALUES
   ( 'Tools', 'Tools'),
