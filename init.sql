@@ -210,7 +210,7 @@ CREATE TABLE IF NOT EXISTS shippings (
 );
 
 CREATE TABLE IF NOT EXISTS product_shippings (
-  shipping_id INTEGER REFERENCES shippings(id),
+  shipping_id INTEGER REFERENCES shippings(id) ON DELETE SET NULL,
   product_id UUID REFERENCES products(id),
   ship_charge NUMERIC,
   free BOOLEAN,
