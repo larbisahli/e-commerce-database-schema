@@ -89,7 +89,6 @@ CREATE TABLE IF NOT EXISTS gallery (
   image TEXT NOT NULL,
   placeholder TEXT NOT NULL,
   is_thumbnail BOOLEAN DEFAULT FALSE,
-  display_order SMALLINT NOT NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   created_by UUID REFERENCES staff_accounts(id),
