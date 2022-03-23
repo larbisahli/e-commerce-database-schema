@@ -1,4 +1,5 @@
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
 -- TABLES --
 
 CREATE TABLE IF NOT EXISTS roles (
@@ -42,21 +43,23 @@ CREATE TABLE IF NOT EXISTS categories (
 
 CREATE TABLE IF NOT EXISTS products (
   id UUID NOT NULL DEFAULT uuid_generate_v4(),
+  slug TEXT NOT NULL,
   product_name VARCHAR(255) NOT NULL,
-  SKU VARCHAR(255),
-  regular_price NUMERIC DEFAULT 0,
-  discount_price NUMERIC DEFAULT 0,
+  sku VARCHAR(255),
+  sale_price NUMERIC DEFAULT 0,
+  compare_price NUMERIC DEFAULT 0,
+  buying_price NUMERIC DEFAULT 0,
   quantity INTEGER DEFAULT 0,
   short_description VARCHAR(165) NOT NULL,
   product_description TEXT NOT NULL,
-  product_weight NUMERIC,
-  published BOOLEAN DEFAULT TRUE,
-  product_note VARCHAR(255),
+  published BOOLEAN DEFAULT FALSE,
+  disable_out_of_stock BOOLEAN DEFAULT TRUE,
+  note TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   created_by UUID REFERENCES staff_accounts(id),
   updated_by UUID REFERENCES staff_accounts(id),
-  CHECK (regular_price >= discount_price),
+  CHECK (sale_price > compare_price),
   PRIMARY KEY (id)
 );
 
@@ -66,11 +69,26 @@ CREATE TABLE IF NOT EXISTS product_categories (
   PRIMARY KEY (product_id, category_id)
 );
 
-CREATE TABLE IF NOT EXISTS galleries (
+CREATE TABLE IF NOT EXISTS product_shipping_options (
+  id UUID NOT NULL DEFAULT uuid_generate_v4(),
+  product_id UUID REFERENCES products(id) ON DELETE SET NULL,
+  weight NUMERIC DEFAULT 0,
+  weight_unit VARCHAR(10),
+  volume NUMERIC DEFAULT 0,
+  volume_unit VARCHAR(10),
+  dimension_width NUMERIC DEFAULT 0,
+  dimension_height NUMERIC DEFAULT 0,
+  dimension_depth NUMERIC DEFAULT 0,
+  dimension_unit VARCHAR(10),
+  PRIMARY KEY (id)
+);
+
+CREATE TABLE IF NOT EXISTS gallery (
   id UUID NOT NULL DEFAULT uuid_generate_v4(),
   product_id UUID REFERENCES products(id),
-  image_path TEXT NOT NULL,
-  thumbnail BOOLEAN DEFAULT FALSE,
+  image TEXT NOT NULL,
+  placeholder TEXT NOT NULL,
+  is_thumbnail BOOLEAN DEFAULT FALSE,
   display_order SMALLINT NOT NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -89,13 +107,6 @@ CREATE TABLE IF NOT EXISTS attributes (
   PRIMARY KEY (id)
 );
 
--- Make sure postgres creats individual index for product.id and attribute.id instead on conposite index
-CREATE TABLE IF NOT EXISTS product_attributes (
-  product_id UUID REFERENCES products(id) ON DELETE SET NULL,
-  attribute_id UUID REFERENCES attributes(id) ON DELETE SET NULL,
-  PRIMARY KEY (product_id, attribute_id)
-);
-
 CREATE TABLE IF NOT EXISTS attribute_values (
   id UUID NOT NULL DEFAULT uuid_generate_v4(),
   attribute_id UUID REFERENCES attributes(id),
@@ -104,24 +115,46 @@ CREATE TABLE IF NOT EXISTS attribute_values (
   PRIMARY KEY (id)
 );
 
-CREATE TABLE IF NOT EXISTS variant_attribute_values (
+CREATE TABLE IF NOT EXISTS product_attributes (
   id UUID NOT NULL DEFAULT uuid_generate_v4(),
+  product_id UUID REFERENCES products(id) ON DELETE SET NULL,
+  attribute_id UUID REFERENCES attributes(id) ON DELETE SET NULL,
+  PRIMARY KEY (id)
+);
+
+CREATE TABLE IF NOT EXISTS product_attribute_values (
+  id UUID NOT NULL DEFAULT uuid_generate_v4(),
+  product_attribute_id UUID REFERENCES product_attributes(id) ON DELETE SET NULL,
   attribute_value_id UUID REFERENCES attribute_values(id),
   PRIMARY KEY (id)
 );
 
+CREATE TABLE IF NOT EXISTS variant_options (
+  id UUID NOT NULL DEFAULT uuid_generate_v4(),
+  title TEXT NOT NULL,
+  image_id UUID REFERENCES gallery(id),
+  sale_price NUMERIC DEFAULT 0,
+  compare_price NUMERIC DEFAULT 0,
+  buying_price NUMERIC DEFAULT 0,
+  quantity INTEGER DEFAULT 0,
+  sku VARCHAR(255),
+  active BOOLEAN DEFAULT TRUE,
+  PRIMARY KEY (id)
+);
+
+-- Means a product has 2 variants black/XL red/XL
 CREATE TABLE IF NOT EXISTS variants (
   id UUID NOT NULL DEFAULT uuid_generate_v4(),
-  variant_attribute_value_id UUID REFERENCES variant_attribute_values(id),
+  variant_option TEXT NOT NULL,
   product_id UUID REFERENCES products(id),
+  variant_option_id UUID REFERENCES variant_options(id),
   PRIMARY KEY (id)
 );
 
 CREATE TABLE IF NOT EXISTS variant_values (
   id UUID NOT NULL DEFAULT uuid_generate_v4(),
   variant_id UUID REFERENCES variants(id),
-  price NUMERIC DEFAULT 0,
-  quantity INTEGER DEFAULT 0,
+  product_attribute_value_id UUID REFERENCES product_attribute_values(id), -- black or XL
   PRIMARY KEY (id)
 );
 
@@ -129,7 +162,6 @@ CREATE TABLE IF NOT EXISTS customers (
   id UUID NOT NULL DEFAULT uuid_generate_v4(),
   first_name VARCHAR(100) NOT NULL,
   last_name VARCHAR(100) NOT NULL,
-  phone_number VARCHAR(255),
   email TEXT NOT NULL UNIQUE,
   password_hash TEXT NOT NULL,
   active BOOLEAN DEFAULT TRUE,
@@ -144,20 +176,21 @@ CREATE TABLE IF NOT EXISTS customer_addresses (
   address_line1 TEXT NOT NULL,
   address_line2 TEXT,
   phone_number VARCHAR(255) NOT NULL,
-  country VARCHAR(255) DEFAULT 'Morocco',
+  dial_code VARCHAR(100) NOT NULL,
+  country VARCHAR(255) NOT NULL,
   postal_code VARCHAR(255) NOT NULL,
   city VARCHAR(255) NOT NULL,
   PRIMARY KEY (id)
 );
 
 CREATE TABLE IF NOT EXISTS coupons (
-  id SERIAL NOT NULL,
-  code VARCHAR(50),
-  coupon_description TEXT,
+  id UUID NOT NULL DEFAULT uuid_generate_v4(),
+  code VARCHAR(50) NOT NULL UNIQUE,
   discount_value NUMERIC,
   discount_type VARCHAR(50) NOT NULL,
   times_used NUMERIC DEFAULT 0,
   max_usage NUMERIC DEFAULT null,
+  order_amount_limit NUMERIC DEFAULT null,
   coupon_start_date TIMESTAMPTZ,
   coupon_end_date TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -168,37 +201,14 @@ CREATE TABLE IF NOT EXISTS coupons (
 );
 
 CREATE TABLE IF NOT EXISTS product_coupons (
+  id UUID NOT NULL DEFAULT uuid_generate_v4(),
   product_id UUID REFERENCES products(id) ON DELETE SET NULL,
-  coupon_id INTEGER REFERENCES coupons(id) ON DELETE SET NULL,
-  PRIMARY KEY (product_id, coupon_id)
-);
-
-CREATE TABLE IF NOT EXISTS order_statuses (
-  id SERIAL NOT NULL,
-  status_name VARCHAR(255) NOT NULL,
-  color VARCHAR(50) NOT NULL,
-  privacy VARCHAR(50) DEFAULT 'private'
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  created_by UUID REFERENCES staff_accounts(id),
-  updated_by UUID REFERENCES staff_accounts(id),
+  coupon_id UUID REFERENCES coupons(id) ON DELETE SET NULL,
   PRIMARY KEY (id)
-);
-CREATE TABLE IF NOT EXISTS orders (
-  id VARCHAR(50) NOT NULL,
-  coupon_id INTEGER REFERENCES coupons(id) ON DELETE SET NULL,
-  customer_id UUID REFERENCES customers(id),
-  order_status_id INTEGER REFERENCES order_statuses(id) ON DELETE SET NULL,
-  order_approved_at TIMESTAMPTZ,
-  order_delivered_carrier_date TIMESTAMPTZ,
-  order_delivered_customer_date TIMESTAMPTZ,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_by UUID REFERENCES staff_accounts(id),
-  PRIMARY KEY (id) -- It's better to use Two-Phase Locking inside your transaction (SELECT ... FOR UPDATE) to prevent double booking problems for this table.
 );
 
 CREATE TABLE IF NOT EXISTS shippings (
-  id SERIAL NOT NULL,
+  id UUID NOT NULL DEFAULT uuid_generate_v4(),
   shipper_name TEXT,
   active BOOLEAN DEFAULT TRUE,
   shipper_icon_path TEXT,
@@ -210,32 +220,59 @@ CREATE TABLE IF NOT EXISTS shippings (
 );
 
 CREATE TABLE IF NOT EXISTS product_shippings (
-  shipping_id INTEGER REFERENCES shippings(id) ON DELETE SET NULL,
+  shipping_id UUID REFERENCES shippings(id) ON DELETE SET NULL,
   product_id UUID REFERENCES products(id),
-  ship_charge NUMERIC,
-  free BOOLEAN,
-  estimated_days NUMERIC,
+  shipping_price NUMERIC DEFAULT 0, -- 0 mearns free shipping
+  shipping_zones VARCHAR(100)[], -- [global] or [MA, US, GB, ...] or [others]
+  -- estimated_days NUMERIC,
   PRIMARY KEY (shipping_id, product_id)
 );
+
+CREATE TABLE IF NOT EXISTS order_statuses (
+  id UUID NOT NULL DEFAULT uuid_generate_v4(),
+  status_name VARCHAR(255) NOT NULL,
+  color VARCHAR(50) NOT NULL,
+  privacy VARCHAR(10) CHECK (privacy IN ('public', 'private')) NOT NULL DEFAULT 'private',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  created_by UUID REFERENCES staff_accounts(id),
+  updated_by UUID REFERENCES staff_accounts(id),
+  PRIMARY KEY (id)
+);
+
+CREATE TABLE IF NOT EXISTS orders (
+  id VARCHAR(50) NOT NULL,
+  coupon_id UUID REFERENCES coupons(id) ON DELETE SET NULL,
+  customer_id UUID REFERENCES customers(id),
+  order_status_id UUID REFERENCES order_statuses(id) ON DELETE SET NULL,
+  order_approved_at TIMESTAMPTZ,
+  order_delivered_carrier_date TIMESTAMPTZ,
+  order_delivered_customer_date TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_by UUID REFERENCES staff_accounts(id),
+  PRIMARY KEY (id) -- It's better to use Two-Phase Locking inside your transaction (SELECT ... FOR UPDATE) to prevent double booking problems for this table.
+);
+
 CREATE TABLE IF NOT EXISTS order_items (
   id UUID NOT NULL DEFAULT uuid_generate_v4(),
   product_id UUID REFERENCES products(id),
   order_id VARCHAR(50) REFERENCES orders(id),
   price NUMERIC NOT NULL,
   quantity INTEGER NOT NULL,
-  shipping_id INTEGER REFERENCES shippings(id) ON DELETE SET NULL, PRIMARY KEY (id) 
-  -- For security reasons don't add total price from the frontend get it using product.id in the backend.
+  shipping_id UUID REFERENCES shippings(id) ON DELETE SET NULL, 
+  PRIMARY KEY (id) 
 );
+
 CREATE TABLE IF NOT EXISTS sells (
   id SERIAL NOT NULL,
   product_id UUID UNIQUE REFERENCES products(id),
   price NUMERIC NOT NULL,
-  -- increment (product price may change)
   quantity INTEGER NOT NULL,
   PRIMARY KEY (id) 
 );
+
 CREATE TABLE IF NOT EXISTS slideshows (
-  id SERIAL NOT NULL,
+  id UUID NOT NULL DEFAULT uuid_generate_v4(),
   destination_url TEXT,
   image_url TEXT,
   clicks INTEGER DEFAULT 0,
@@ -245,8 +282,9 @@ CREATE TABLE IF NOT EXISTS slideshows (
   updated_by UUID REFERENCES staff_accounts(id),
   PRIMARY KEY (id)
 );
+
 CREATE TABLE IF NOT EXISTS notifications (
-  id SERIAL NOT NULL,
+  id UUID NOT NULL DEFAULT uuid_generate_v4(),
   account_id UUID REFERENCES staff_accounts(id),
   title VARCHAR(100),
   content TEXT,
@@ -256,11 +294,13 @@ CREATE TABLE IF NOT EXISTS notifications (
   notification_expiry_date DATE,
   PRIMARY KEY (id)
 );
+
 CREATE TABLE IF NOT EXISTS cards (
   id UUID NOT NULL DEFAULT uuid_generate_v4(),
   customer_id UUID REFERENCES customers(id),
   PRIMARY KEY (id)
 );
+
 CREATE TABLE IF NOT EXISTS card_items (
   id UUID NOT NULL DEFAULT uuid_generate_v4(),
   card_id UUID REFERENCES cards(id),
@@ -268,8 +308,9 @@ CREATE TABLE IF NOT EXISTS card_items (
   quantity INTEGER DEFAULT 1,
   PRIMARY KEY (id)
 );
+
 CREATE TABLE IF NOT EXISTS tags (
-  id SERIAL NOT NULL,
+  id UUID NOT NULL DEFAULT uuid_generate_v4(),
   tag_name VARCHAR(255) NOT NULL,
   icon TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -278,21 +319,41 @@ CREATE TABLE IF NOT EXISTS tags (
   updated_by UUID REFERENCES staff_accounts(id),
   PRIMARY KEY (id)
 );
+
 CREATE TABLE IF NOT EXISTS product_tags (
-  tag_id INTEGER REFERENCES tags(id),
+  tag_id UUID REFERENCES tags(id),
   product_id UUID REFERENCES products(id),
   PRIMARY KEY (tag_id, product_id)
 );
+
+CREATE TABLE IF NOT EXISTS suppliers (
+  id UUID NOT NULL DEFAULT uuid_generate_v4(),
+  supplier_name VARCHAR(255) NOT NULL,
+  company VARCHAR(255),
+  phone_number VARCHAR(255),
+  dial_code VARCHAR(100),
+  address_line1 TEXT NOT NULL,
+  address_line2 TEXT,
+  country VARCHAR(255),
+  city VARCHAR(255),
+  note TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  created_by UUID REFERENCES staff_accounts(id),
+  updated_by UUID REFERENCES staff_accounts(id),
+  PRIMARY KEY (id)
+);
+
 -- FUNCTIONS --
-CREATE OR REPLACE FUNCTION update_at_timestamp() RETURNS TRIGGER AS $ $ BEGIN NEW.updated_at = NOW();
+CREATE OR REPLACE FUNCTION update_at_timestamp() RETURNS TRIGGER AS $$ BEGIN NEW.updated_at = NOW();
 RETURN NEW;
   END;
-  $ $ language 'plpgsql';
+  $$ language 'plpgsql';
 
 -- TRIGGERS --
 CREATE TRIGGER category_set_update BEFORE UPDATE ON categories FOR EACH ROW EXECUTE PROCEDURE update_at_timestamp();
-CREATE TRIGGER gallery_set_update BEFORE UPDATE ON galleries FOR EACH ROW EXECUTE PROCEDURE update_at_timestamp();
-CREATE TRIGGER attribute_set_update BEFOR UPDATE ON attributes FOR EACH ROW EXECUTE PROCEDURE update_at_timestamp();
+CREATE TRIGGER gallery_set_update BEFORE UPDATE ON gallery FOR EACH ROW EXECUTE PROCEDURE update_at_timestamp();
+CREATE TRIGGER attribute_set_update BEFORE UPDATE ON attributes FOR EACH ROW EXECUTE PROCEDURE update_at_timestamp();
 CREATE TRIGGER product_set_update BEFORE UPDATE ON products FOR EACH ROW EXECUTE PROCEDURE update_at_timestamp();
 CREATE TRIGGER staff_set_update BEFORE UPDATE ON staff_accounts FOR EACH ROW EXECUTE PROCEDURE update_at_timestamp();
 CREATE TRIGGER coupon_set_update BEFORE UPDATE ON coupons FOR EACH ROW EXECUTE PROCEDURE update_at_timestamp();
@@ -303,23 +364,37 @@ CREATE TRIGGER notification_set_update BEFORE UPDATE ON notifications FOR EACH R
 CREATE TRIGGER shipping_set_update BEFORE UPDATE ON shippings FOR EACH ROW EXECUTE PROCEDURE update_at_timestamp();
 CREATE TRIGGER tag_set_update BEFORE UPDATE ON tags FOR EACH ROW EXECUTE PROCEDURE update_at_timestamp();
 CREATE TRIGGER order_statuse_set_update BEFORE UPDATE ON order_statuses FOR EACH ROW EXECUTE PROCEDURE update_at_timestamp();
+CREATE TRIGGER suppliers_set_update BEFORE UPDATE ON suppliers FOR EACH ROW EXECUTE PROCEDURE update_at_timestamp();
+
 -- PARTIOTIONS --
-CREATE TABLE galleries_part1 PARTITION OF galleries FOR VALUES WITH (modulus 3, remainder 0);
-CREATE TABLE galleries_part2 PARTITION OF galleries FOR VALUES WITH (modulus 3, remainder 1);
-CREATE TABLE galleries_part3 PARTITION OF galleries FOR VALUES WITH (modulus 3, remainder 2);
+CREATE TABLE gallery_part1 PARTITION OF gallery FOR VALUES WITH (modulus 3, remainder 0);
+CREATE TABLE gallery_part2 PARTITION OF gallery FOR VALUES WITH (modulus 3, remainder 1);
+CREATE TABLE gallery_part3 PARTITION OF gallery FOR VALUES WITH (modulus 3, remainder 2);
+
 -- INDEXES --
+-- Declaration of a foreign key constraint does not automatically create an index on the referencing columns.
+
 -- products
 CREATE INDEX idx_product_id_publish ON products (id, published);
+CREATE INDEX idx_product_slug_publish ON products (slug, published);
 -- customers
 CREATE INDEX idx_customer_email ON customers (email);
-CREATE INDEX idx_customer_phone_number ON customers (phone_number);
-CREATE INDEX idx_customer_registered_at ON customers (registered_at);
--- galleries
-CREATE INDEX idx_image_gallery ON galleries (product_id, thumbnail);
+-- gallery
+CREATE INDEX idx_image_gallery ON gallery (product_id, is_thumbnail);
 -- attribute_values
 CREATE INDEX idx_attribute_values ON attribute_values (attribute_id);
+-- product_attribute_values
+CREATE INDEX idx_product_attribute_values_product_attribute_id ON product_attribute_values (product_attribute_id);
+-- product_attributes
+CREATE INDEX idx_product_attribute_fk ON product_attributes (product_id, attribute_id);
 -- variants
 CREATE INDEX idx_product_id_variants ON variants (product_id);
+-- variant_values
+CREATE INDEX idx_variant_id_variant_values ON variant_values (variant_id);
+-- coupons
+CREATE INDEX idx_code_coupons ON coupons (code);
+-- product_coupons
+CREATE INDEX idx_product_id_coupon_id_product_coupons ON product_coupons (product_id, coupon_id);
 -- orders
 CREATE INDEX idx_order_customer_id ON orders (customer_id);
 -- order_items
@@ -327,17 +402,21 @@ CREATE INDEX idx_product_id_order_item ON order_items (product_id);
 CREATE INDEX idx_order_id_order_item ON order_items (order_id);
 -- cards
 CREATE INDEX idx_customer_id_card ON cards (customer_id);
--- DEFAULT DATA --
-WITH att_id AS ( INSERT INTO attributes (attribute_name) VALUES ('color'), ('size') RETURNING * )
 
+-- DEFAULT DATA --
+WITH att_id AS ( INSERT INTO attributes (attribute_name) VALUES ('Color'), ('Size') RETURNING * )
 INSERT INTO attribute_values (attribute_id, attribute_value, color) VALUES
-  ((SELECT id FROM att_id WHERE attribute_name = 'color'), 'black', '#000'),
-  (( SELECT id FROM att_id WHERE attribute_name = 'color'), 'white', '#FFF'),
-  (( SELECT id FROM att_id WHERE attribute_name = 'color'), 'red', '#FF0000'),
-  (( SELECT id FROM att_id WHERE attribute_name = 'size'), 'S', null),
-  (( SELECT id FROM att_id WHERE attribute_name = 'size'), 'M', null),
-  (( SELECT id FROM att_id WHERE attribute_name = 'size'),'L', null),
-  (( SELECT id FROM att_id WHERE attribute_name = 'size'), 'XL', null);
+  ((SELECT id FROM att_id WHERE attribute_name = 'Color'), 'black', '#000'),
+  (( SELECT id FROM att_id WHERE attribute_name = 'Color'), 'white', '#FFF'),
+  (( SELECT id FROM att_id WHERE attribute_name = 'Color'), 'red', '#FF0000'),
+  (( SELECT id FROM att_id WHERE attribute_name = 'Size'), 'S', null),
+  (( SELECT id FROM att_id WHERE attribute_name = 'Size'), 'M', null),
+  (( SELECT id FROM att_id WHERE attribute_name = 'Size'),'L', null),
+  (( SELECT id FROM att_id WHERE attribute_name = 'Size'),'XL', null),
+  (( SELECT id FROM att_id WHERE attribute_name = 'Size'),'2XL', null),
+  (( SELECT id FROM att_id WHERE attribute_name = 'Size'),'3XL', null),
+  (( SELECT id FROM att_id WHERE attribute_name = 'Size'),'4XL', null),
+  (( SELECT id FROM att_id WHERE attribute_name = 'Size'), '5XL', null);
   
 INSERT INTO order_statuses (status_name, color, privacy) VALUES
   ('Complete', '#5ae510','public'),
@@ -345,7 +424,7 @@ INSERT INTO order_statuses (status_name, color, privacy) VALUES
   ('Pending', '#20b9df', 'public'),
   ('On Hold', '#d6d6d6', 'public'),
   ('Shipped', '#71f9f7', 'public'),
-  ('Cancelled', '#FD9F3D ', 'public'),
+  ('Cancelled', '#FD9F3D', 'public'),
   ('Faild', '#FF532F', 'private');
   
 INSERT INTO roles (id, role_name, privileges) VALUES
