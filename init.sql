@@ -222,7 +222,7 @@ CREATE TABLE IF NOT EXISTS product_shippings (
   shipping_id UUID REFERENCES shippings(id) ON DELETE SET NULL,
   product_id UUID REFERENCES products(id),
   shipping_price NUMERIC DEFAULT 0, -- 0 mearns free shipping
-  shipping_zones VARCHAR(100)[], -- [global] or [MA, US, GB, ...] or [others]
+  shipping_zones VARCHAR(100)[], -- [global] or [MA, US, GB, ...]
   -- estimated_days NUMERIC,
   PRIMARY KEY (shipping_id, product_id)
 );
