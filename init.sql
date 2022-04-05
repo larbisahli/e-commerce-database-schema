@@ -1,5 +1,4 @@
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-
 -- TABLES --
 
 CREATE TABLE IF NOT EXISTS roles (
@@ -18,7 +17,8 @@ CREATE TABLE IF NOT EXISTS staff_accounts (
   email VARCHAR(255) NOT NULL UNIQUE,
   password_hash TEXT NOT NULL,
   active BOOLEAN DEFAULT TRUE,
-  profile_img TEXT DEFAULT NULL,
+  image TEXT DEFAULT NULL,
+  placeholder TEXT DEFAULT NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   created_by UUID REFERENCES staff_accounts(id),
@@ -32,7 +32,8 @@ CREATE TABLE IF NOT EXISTS categories (
   category_name VARCHAR(255) NOT NULL UNIQUE,
   category_description TEXT,
   icon TEXT,
-  image_path TEXT,
+  image TEXT,
+  placeholder TEXT,
   active BOOLEAN DEFAULT TRUE,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -43,7 +44,7 @@ CREATE TABLE IF NOT EXISTS categories (
 
 CREATE TABLE IF NOT EXISTS products (
   id UUID NOT NULL DEFAULT uuid_generate_v4(),
-  slug TEXT NOT NULL,
+  slug TEXT NOT NULL UNIQUE,
   product_name VARCHAR(255) NOT NULL,
   sku VARCHAR(255),
   sale_price NUMERIC DEFAULT 0,
@@ -64,12 +65,12 @@ CREATE TABLE IF NOT EXISTS products (
 );
 
 CREATE TABLE IF NOT EXISTS product_categories (
-  product_id UUID REFERENCES products(id) ON DELETE SET NULL,
-  category_id UUID REFERENCES categories(id) ON DELETE SET NULL,
+  product_id UUID REFERENCES products(id) NOT NULL,
+  category_id UUID REFERENCES categories(id) NOT NULL,
   PRIMARY KEY (product_id, category_id)
 );
 
-CREATE TABLE IF NOT EXISTS product_shipping_options (
+CREATE TABLE IF NOT EXISTS product_shipping_info (
   id UUID NOT NULL DEFAULT uuid_generate_v4(),
   product_id UUID REFERENCES products(id) ON DELETE SET NULL,
   weight NUMERIC DEFAULT 0,
@@ -91,8 +92,6 @@ CREATE TABLE IF NOT EXISTS gallery (
   is_thumbnail BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  created_by UUID REFERENCES staff_accounts(id),
-  updated_by UUID REFERENCES staff_accounts(id),
   PRIMARY KEY (id)
 ) PARTITION BY HASH(id);
 
@@ -108,7 +107,7 @@ CREATE TABLE IF NOT EXISTS attributes (
 
 CREATE TABLE IF NOT EXISTS attribute_values (
   id UUID NOT NULL DEFAULT uuid_generate_v4(),
-  attribute_id UUID REFERENCES attributes(id),
+  attribute_id UUID REFERENCES attributes(id) NOT NULL,
   attribute_value VARCHAR(255) NOT NULL,
   color VARCHAR(50) DEFAULT NULL,
   PRIMARY KEY (id)
@@ -116,15 +115,15 @@ CREATE TABLE IF NOT EXISTS attribute_values (
 
 CREATE TABLE IF NOT EXISTS product_attributes (
   id UUID NOT NULL DEFAULT uuid_generate_v4(),
-  product_id UUID REFERENCES products(id) ON DELETE SET NULL,
-  attribute_id UUID REFERENCES attributes(id) ON DELETE SET NULL,
+  product_id UUID REFERENCES products(id) NOT NULL,
+  attribute_id UUID REFERENCES attributes(id) NOT NULL,
   PRIMARY KEY (id)
 );
 
 CREATE TABLE IF NOT EXISTS product_attribute_values (
   id UUID NOT NULL DEFAULT uuid_generate_v4(),
-  product_attribute_id UUID REFERENCES product_attributes(id) ON DELETE SET NULL,
-  attribute_value_id UUID REFERENCES attribute_values(id),
+  product_attribute_id UUID REFERENCES product_attributes(id) NOT NULL,
+  attribute_value_id UUID REFERENCES attribute_values(id) NOT NULL,
   PRIMARY KEY (id)
 );
 
@@ -145,15 +144,15 @@ CREATE TABLE IF NOT EXISTS variant_options (
 CREATE TABLE IF NOT EXISTS variants (
   id UUID NOT NULL DEFAULT uuid_generate_v4(),
   variant_option TEXT NOT NULL,
-  product_id UUID REFERENCES products(id),
-  variant_option_id UUID REFERENCES variant_options(id),
+  product_id UUID REFERENCES products(id) NOT NULL,
+  variant_option_id UUID REFERENCES variant_options(id) NOT NULL,
   PRIMARY KEY (id)
 );
 
 CREATE TABLE IF NOT EXISTS variant_values (
   id UUID NOT NULL DEFAULT uuid_generate_v4(),
-  variant_id UUID REFERENCES variants(id),
-  product_attribute_value_id UUID REFERENCES product_attribute_values(id), -- black or XL
+  variant_id UUID REFERENCES variants(id) NOT NULL,
+  product_attribute_value_id UUID REFERENCES product_attribute_values(id) NOT NULL, -- black or XL
   PRIMARY KEY (id)
 );
 
@@ -201,8 +200,8 @@ CREATE TABLE IF NOT EXISTS coupons (
 
 CREATE TABLE IF NOT EXISTS product_coupons (
   id UUID NOT NULL DEFAULT uuid_generate_v4(),
-  product_id UUID REFERENCES products(id) ON DELETE SET NULL,
-  coupon_id UUID REFERENCES coupons(id) ON DELETE SET NULL,
+  product_id UUID REFERENCES products(id) NOT NULL,
+  coupon_id UUID REFERENCES coupons(id) NOT NULL,
   PRIMARY KEY (id)
 );
 
@@ -210,7 +209,8 @@ CREATE TABLE IF NOT EXISTS shippings (
   id UUID NOT NULL DEFAULT uuid_generate_v4(),
   shipper_name TEXT,
   active BOOLEAN DEFAULT TRUE,
-  shipper_icon_path TEXT,
+  image TEXT DEFAULT NULL,
+  placeholder TEXT DEFAULT NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   created_by UUID REFERENCES staff_accounts(id),
@@ -219,12 +219,19 @@ CREATE TABLE IF NOT EXISTS shippings (
 );
 
 CREATE TABLE IF NOT EXISTS product_shippings (
-  shipping_id UUID REFERENCES shippings(id) ON DELETE SET NULL,
-  product_id UUID REFERENCES products(id),
+  id UUID NOT NULL DEFAULT uuid_generate_v4(),
+  shipping_id UUID REFERENCES shippings(id) NOT NULL,
+  product_id UUID REFERENCES products(id) NOT NULL,
+  PRIMARY KEY (id)
+);
+
+CREATE TABLE IF NOT EXISTS product_shipping_options (
+  id UUID NOT NULL DEFAULT uuid_generate_v4(),
+  product_shipping_id UUID REFERENCES product_shippings(id) NOT NULL,
   shipping_price NUMERIC DEFAULT 0, -- 0 mearns free shipping
-  shipping_zones VARCHAR(100)[], -- [global] or [MA, US, GB, ...]
+  shipping_zones VARCHAR(100)[195], -- [Global] or [MA, US, GB, ...]
   -- estimated_days NUMERIC,
-  PRIMARY KEY (shipping_id, product_id)
+  PRIMARY KEY (id)
 );
 
 CREATE TABLE IF NOT EXISTS order_statuses (
@@ -273,7 +280,8 @@ CREATE TABLE IF NOT EXISTS sells (
 CREATE TABLE IF NOT EXISTS slideshows (
   id UUID NOT NULL DEFAULT uuid_generate_v4(),
   destination_url TEXT,
-  image_url TEXT,
+  image TEXT,
+  placeholder TEXT,
   clicks INTEGER DEFAULT 0,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -320,8 +328,8 @@ CREATE TABLE IF NOT EXISTS tags (
 );
 
 CREATE TABLE IF NOT EXISTS product_tags (
-  tag_id UUID REFERENCES tags(id),
-  product_id UUID REFERENCES products(id),
+  tag_id UUID REFERENCES tags(id) NOT NULL,
+  product_id UUID REFERENCES products(id) NOT NULL,
   PRIMARY KEY (tag_id, product_id)
 );
 
@@ -341,6 +349,12 @@ CREATE TABLE IF NOT EXISTS suppliers (
   created_by UUID REFERENCES staff_accounts(id),
   updated_by UUID REFERENCES staff_accounts(id),
   PRIMARY KEY (id)
+);
+
+CREATE TABLE IF NOT EXISTS product_suppliers (
+  supplier_id UUID REFERENCES suppliers(id) NOT NULL,
+  product_id UUID REFERENCES products(id) NOT NULL,
+  PRIMARY KEY (supplier_id, product_id)
 );
 
 -- FUNCTIONS --
@@ -386,6 +400,10 @@ CREATE INDEX idx_attribute_values ON attribute_values (attribute_id);
 CREATE INDEX idx_product_attribute_values_product_attribute_id ON product_attribute_values (product_attribute_id);
 -- product_attributes
 CREATE INDEX idx_product_attribute_fk ON product_attributes (product_id, attribute_id);
+-- product_shippings
+CREATE INDEX idx_product_shippings_fk ON product_shippings (product_id);
+-- product_shipping_options
+CREATE INDEX idx_product_shipping_options_fk ON product_shipping_options (product_shipping_id);
 -- variants
 CREATE INDEX idx_product_id_variants ON variants (product_id);
 -- variant_values
