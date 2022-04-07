@@ -241,9 +241,10 @@ export interface IMGType {
   placeholder: Scalars['String'];
   is_thumbnail: boolean;
 }
+
 export interface ProductShippings {
   shipping_zones?: {
-    zones: string[];
+    zones: { name: string; code: string }[];
     shipping_price?: Scalars['Float'];
   }[];
   shipping_provider?: Shipping;
