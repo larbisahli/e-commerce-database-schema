@@ -229,7 +229,7 @@ CREATE TABLE IF NOT EXISTS product_shipping_options (
   id UUID NOT NULL DEFAULT uuid_generate_v4(),
   product_shipping_id UUID REFERENCES product_shippings(id) NOT NULL,
   shipping_price NUMERIC DEFAULT 0, -- 0 means free shipping
-  shipping_zones jsonb,
+  shipping_zones jsonb[],
   -- estimated_days NUMERIC,
   PRIMARY KEY (id)
 );
