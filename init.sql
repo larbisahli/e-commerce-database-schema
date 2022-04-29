@@ -60,7 +60,7 @@ CREATE TABLE IF NOT EXISTS products (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   created_by UUID REFERENCES staff_accounts(id),
   updated_by UUID REFERENCES staff_accounts(id),
-  CHECK (sale_price > compare_price),
+  CHECK (compare_price > sale_price OR compare_price = 0),
   PRIMARY KEY (id)
 );
 
@@ -137,6 +137,7 @@ CREATE TABLE IF NOT EXISTS variant_options (
   quantity INTEGER DEFAULT 0,
   sku VARCHAR(255),
   active BOOLEAN DEFAULT TRUE,
+  CHECK (compare_price > sale_price OR compare_price = 0),
   PRIMARY KEY (id)
 );
 
