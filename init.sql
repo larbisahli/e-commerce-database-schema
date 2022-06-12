@@ -47,10 +47,10 @@ CREATE TABLE IF NOT EXISTS products (
   slug TEXT NOT NULL UNIQUE,
   product_name VARCHAR(255) NOT NULL,
   sku VARCHAR(255),
-  sale_price NUMERIC DEFAULT 0,
+  sale_price NUMERIC NOT NULL DEFAULT 0,
   compare_price NUMERIC DEFAULT 0,
-  buying_price NUMERIC DEFAULT 0,
-  quantity INTEGER DEFAULT 0,
+  buying_price NUMERIC DEFAULT NULL,
+  quantity INTEGER NOT NULL DEFAULT 0,
   short_description VARCHAR(165) NOT NULL,
   product_description TEXT NOT NULL,
   published BOOLEAN DEFAULT FALSE,
@@ -65,21 +65,22 @@ CREATE TABLE IF NOT EXISTS products (
 );
 
 CREATE TABLE IF NOT EXISTS product_categories (
+  id UUID NOT NULL DEFAULT uuid_generate_v4(),
   product_id UUID REFERENCES products(id) NOT NULL,
   category_id UUID REFERENCES categories(id) NOT NULL,
-  PRIMARY KEY (product_id, category_id)
+  PRIMARY KEY (id)
 );
 
 CREATE TABLE IF NOT EXISTS product_shipping_info (
   id UUID NOT NULL DEFAULT uuid_generate_v4(),
   product_id UUID REFERENCES products(id) ON DELETE SET NULL,
-  weight NUMERIC DEFAULT 0,
+  weight NUMERIC NOT NULL DEFAULT 0,
   weight_unit VARCHAR(10),
-  volume NUMERIC DEFAULT 0,
+  volume NUMERIC NOT NULL DEFAULT 0,
   volume_unit VARCHAR(10),
-  dimension_width NUMERIC DEFAULT 0,
-  dimension_height NUMERIC DEFAULT 0,
-  dimension_depth NUMERIC DEFAULT 0,
+  dimension_width NUMERIC NOT NULL DEFAULT 0,
+  dimension_height NUMERIC NOT NULL DEFAULT 0,
+  dimension_depth NUMERIC NOT NULL DEFAULT 0,
   dimension_unit VARCHAR(10),
   PRIMARY KEY (id)
 );
@@ -130,11 +131,12 @@ CREATE TABLE IF NOT EXISTS product_attribute_values (
 CREATE TABLE IF NOT EXISTS variant_options (
   id UUID NOT NULL DEFAULT uuid_generate_v4(),
   title TEXT NOT NULL,
-  image_id UUID REFERENCES gallery(id),
-  sale_price NUMERIC DEFAULT 0,
+  image_id UUID REFERENCES gallery(id) ON DELETE SET NULL,
+  product_id UUID REFERENCES products(id) NOT NULL,
+  sale_price NUMERIC NOT NULL DEFAULT 0,
   compare_price NUMERIC DEFAULT 0,
-  buying_price NUMERIC DEFAULT 0,
-  quantity INTEGER DEFAULT 0,
+  buying_price NUMERIC DEFAULT NULL,
+  quantity INTEGER NOT NULL DEFAULT 0,
   sku VARCHAR(255),
   active BOOLEAN DEFAULT TRUE,
   CHECK (compare_price > sale_price OR compare_price = 0),
@@ -153,7 +155,7 @@ CREATE TABLE IF NOT EXISTS variants (
 CREATE TABLE IF NOT EXISTS variant_values (
   id UUID NOT NULL DEFAULT uuid_generate_v4(),
   variant_id UUID REFERENCES variants(id) NOT NULL,
-  product_attribute_value_id UUID REFERENCES product_attribute_values(id) NOT NULL, -- black or XL
+  product_attribute_value_id UUID REFERENCES product_attribute_values(id) NOT NULL,
   PRIMARY KEY (id)
 );
 
@@ -187,7 +189,7 @@ CREATE TABLE IF NOT EXISTS coupons (
   code VARCHAR(50) NOT NULL UNIQUE,
   discount_value NUMERIC,
   discount_type VARCHAR(50) NOT NULL,
-  times_used NUMERIC DEFAULT 0,
+  times_used NUMERIC NOT NULL DEFAULT 0,
   max_usage NUMERIC DEFAULT null,
   order_amount_limit NUMERIC DEFAULT null,
   coupon_start_date TIMESTAMPTZ,
@@ -229,7 +231,7 @@ CREATE TABLE IF NOT EXISTS product_shippings (
 CREATE TABLE IF NOT EXISTS product_shipping_options (
   id UUID NOT NULL DEFAULT uuid_generate_v4(),
   product_shipping_id UUID REFERENCES product_shippings(id) NOT NULL,
-  shipping_price NUMERIC DEFAULT 0, -- 0 means free shipping
+  shipping_price NUMERIC NOT NULL DEFAULT 0, -- 0 means free shipping
   shipping_zones jsonb[],
   -- estimated_days NUMERIC,
   PRIMARY KEY (id)
@@ -280,10 +282,16 @@ CREATE TABLE IF NOT EXISTS sells (
 
 CREATE TABLE IF NOT EXISTS slideshows (
   id UUID NOT NULL DEFAULT uuid_generate_v4(),
+  title VARCHAR(80),
   destination_url TEXT,
-  image TEXT,
-  placeholder TEXT,
-  clicks INTEGER DEFAULT 0,
+  image TEXT NOT NULL,
+  placeholder TEXT NOT NULL,
+  description VARCHAR(160),
+  btn_label VARCHAR(50),
+  display_order INTEGER NOT NULL,
+  published BOOLEAN DEFAULT FALSE,
+  clicks INTEGER NOT NULL DEFAULT 0,
+  styles JSONB,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   created_by UUID REFERENCES staff_accounts(id),
@@ -353,9 +361,9 @@ CREATE TABLE IF NOT EXISTS suppliers (
 );
 
 CREATE TABLE IF NOT EXISTS product_suppliers (
-  supplier_id UUID REFERENCES suppliers(id) NOT NULL,
   product_id UUID REFERENCES products(id) NOT NULL,
-  PRIMARY KEY (supplier_id, product_id)
+  supplier_id UUID REFERENCES suppliers(id) NOT NULL,
+  PRIMARY KEY (product_id, supplier_id)
 );
 
 -- FUNCTIONS --
@@ -389,16 +397,20 @@ CREATE TABLE gallery_part3 PARTITION OF gallery FOR VALUES WITH (modulus 3, rema
 -- Declaration of a foreign key constraint does not automatically create an index on the referencing columns.
 
 -- products
-CREATE INDEX idx_product_id_publish ON products (id, published);
-CREATE INDEX idx_product_slug_publish ON products (slug, published);
+CREATE INDEX idx_product_publish ON products (published);
 -- customers
 CREATE INDEX idx_customer_email ON customers (email);
+-- product_categories
+CREATE INDEX idx_product_category ON product_categories (product_id, category_id);
+-- product_shipping_info
+CREATE INDEX idx_product_shipping_info_product_id ON product_shipping_info (product_id);
 -- gallery
 CREATE INDEX idx_image_gallery ON gallery (product_id, is_thumbnail);
 -- attribute_values
 CREATE INDEX idx_attribute_values ON attribute_values (attribute_id);
 -- product_attribute_values
 CREATE INDEX idx_product_attribute_values_product_attribute_id ON product_attribute_values (product_attribute_id);
+CREATE INDEX idx_product_attribute_values_attribute_value_id ON product_attribute_values (attribute_value_id);
 -- product_attributes
 CREATE INDEX idx_product_attribute_fk ON product_attributes (product_id, attribute_id);
 -- product_shippings
@@ -407,8 +419,10 @@ CREATE INDEX idx_product_shippings_fk ON product_shippings (product_id);
 CREATE INDEX idx_product_shipping_options_fk ON product_shipping_options (product_shipping_id);
 -- variants
 CREATE INDEX idx_product_id_variants ON variants (product_id);
+CREATE INDEX idx_variant_option_id_variants ON variants (variant_option_id);
 -- variant_values
 CREATE INDEX idx_variant_id_variant_values ON variant_values (variant_id);
+CREATE INDEX idx_product_attribute_value_id_variant_values ON variant_values (product_attribute_value_id);
 -- coupons
 CREATE INDEX idx_code_coupons ON coupons (code);
 -- product_coupons
@@ -420,11 +434,18 @@ CREATE INDEX idx_product_id_order_item ON order_items (product_id);
 CREATE INDEX idx_order_id_order_item ON order_items (order_id);
 -- cards
 CREATE INDEX idx_customer_id_card ON cards (customer_id);
+-- slideshows
+CREATE INDEX idx_slideshows_publish ON slideshows (published);
+-- product_suppliers
+CREATE INDEX idx_product_supplier ON product_suppliers (product_id, supplier_id);
+-- variant_options
+CREATE INDEX idx_variant_options_product_id ON variant_options (product_id);
+
 
 -- DEFAULT DATA --
 WITH att_id AS ( INSERT INTO attributes (attribute_name) VALUES ('Color'), ('Size') RETURNING * )
 INSERT INTO attribute_values (attribute_id, attribute_value, color) VALUES
-  ((SELECT id FROM att_id WHERE attribute_name = 'Color'), 'black', '#000'),
+  (( SELECT id FROM att_id WHERE attribute_name = 'Color'), 'black', '#000'),
   (( SELECT id FROM att_id WHERE attribute_name = 'Color'), 'white', '#FFF'),
   (( SELECT id FROM att_id WHERE attribute_name = 'Color'), 'red', '#FF0000'),
   (( SELECT id FROM att_id WHERE attribute_name = 'Size'), 'S', null),
