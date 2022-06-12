@@ -1,5 +1,6 @@
 
-### Database Diagram:
+### Database Diagram: 
+(diagram image is outdated)
 
 <p align="center"><img src="db-diagram.png" width="80%"/></p>
 
