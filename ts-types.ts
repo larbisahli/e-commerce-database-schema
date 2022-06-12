@@ -222,11 +222,12 @@ export interface ProductType extends SharedValues {
 }
 
 export interface ProductVariationOptions {
-  id: string;
-  title: string;
-  is_disable: boolean;
+  id: Scalars['ID'];
+  product_id: Scalars['ID'];
+  title: Scalars['String'];
+  is_disable: Scalars['Boolean'];
   active: boolean;
-  image: string;
+  image: Scalars['String'];
   options: string[];
   sale_price: Scalars['Float'];
   compare_price: Scalars['Float'];
