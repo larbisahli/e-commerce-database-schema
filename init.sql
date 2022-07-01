@@ -230,7 +230,7 @@ CREATE TABLE IF NOT EXISTS shipping_zones (
   display_name VARCHAR(255) NOT NULL,
   active BOOLEAN DEFAULT FALSE,
   free_shipping BOOLEAN DEFAULT FALSE,
-  rate_type VARCHAR(64) CHECK (tier IN ('Price', 'Weight')) NOT NULL,
+  rate_type VARCHAR(64) CHECK (tier IN ('price', 'weight')) NOT NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   created_by UUID REFERENCES staff_accounts(id),
