@@ -241,7 +241,7 @@ CREATE TABLE IF NOT EXISTS shipping_zones (
 CREATE TABLE IF NOT EXISTS shipping_country_zones (
   id UUID NOT NULL DEFAULT uuid_generate_v4(),
   shipping_zone_id INTEGER REFERENCES shipping_zones(id) NOT NULL,
-  country_id UUID INTEGER countries(id) NOT NULL,
+  country_id INTEGER REFERENCES countries(id) NOT NULL,
   PRIMARY KEY (id)
 );
 
