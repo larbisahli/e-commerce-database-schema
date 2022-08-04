@@ -58,6 +58,7 @@ CREATE TABLE IF NOT EXISTS products (
   quantity INTEGER NOT NULL DEFAULT 0,
   short_description VARCHAR(165) NOT NULL,
   product_description TEXT NOT NULL,
+  product_type VARCHAR(64) CHECK (product_type IN ('simple', 'variable')),
   published BOOLEAN DEFAULT FALSE,
   disable_out_of_stock BOOLEAN DEFAULT TRUE,
   note TEXT,
@@ -80,13 +81,13 @@ CREATE TABLE IF NOT EXISTS product_shipping_info (
   id UUID NOT NULL DEFAULT uuid_generate_v4(),
   product_id UUID REFERENCES products(id) ON DELETE SET NULL,
   weight NUMERIC NOT NULL DEFAULT 0,
-  weight_unit VARCHAR(10),
+  weight_unit VARCHAR(10) CHECK (weight_unit IN ('g', 'kg')),
   volume NUMERIC NOT NULL DEFAULT 0,
-  volume_unit VARCHAR(10),
+  volume_unit VARCHAR(10) CHECK (volume_unit IN ('l', 'ml')),
   dimension_width NUMERIC NOT NULL DEFAULT 0,
   dimension_height NUMERIC NOT NULL DEFAULT 0,
   dimension_depth NUMERIC NOT NULL DEFAULT 0,
-  dimension_unit VARCHAR(10),
+  dimension_unit VARCHAR(10) CHECK (dimension_unit IN ('l', 'ml')),
   PRIMARY KEY (id)
 );
 
@@ -216,8 +217,8 @@ CREATE TABLE IF NOT EXISTS product_coupons (
 CREATE TABLE IF NOT EXISTS countries (
   id INT NOT NULL DEFAULT NEXTVAL ('countries_seq'),
   iso CHAR(2) NOT NULL,
-  upper_name VARCHAR(80) NOT NULL,
   name VARCHAR(80) NOT NULL,
+  upper_name VARCHAR(80) NOT NULL,
   iso3 CHAR(3) DEFAULT NULL,
   num_code SMALLINT DEFAULT NULL,
   phone_code INT NOT NULL,
@@ -230,7 +231,7 @@ CREATE TABLE IF NOT EXISTS shipping_zones (
   display_name VARCHAR(255) NOT NULL,
   active BOOLEAN DEFAULT FALSE,
   free_shipping BOOLEAN DEFAULT FALSE,
-  rate_type VARCHAR(64) CHECK (tier IN ('price', 'weight')) NOT NULL,
+  rate_type VARCHAR(64) CHECK (rate_type IN ('price', 'weight')),
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   created_by UUID REFERENCES staff_accounts(id),
@@ -248,6 +249,7 @@ CREATE TABLE IF NOT EXISTS shipping_country_zones (
 CREATE TABLE IF NOT EXISTS shipping_rates (
   id UUID NOT NULL DEFAULT uuid_generate_v4(),
   shipping_zone_id INTEGER REFERENCES shipping_zones(id) NOT NULL,
+  weight_unit VARCHAR(10) CHECK (weight_unit IN ('g', 'kg')),
   min_value NUMERIC NOT NULL DEFAULT 0,
   max_value NUMERIC DEFAULT NULL,
   no_max BOOLEAN DEFAULT TRUE,
@@ -287,7 +289,6 @@ CREATE TABLE IF NOT EXISTS order_items (
   order_id VARCHAR(50) REFERENCES orders(id),
   price NUMERIC NOT NULL,
   quantity INTEGER NOT NULL,
-  shipping_id UUID REFERENCES shippings(id) ON DELETE SET NULL, 
   PRIMARY KEY (id) 
 );
 
@@ -366,10 +367,9 @@ CREATE TABLE IF NOT EXISTS suppliers (
   supplier_name VARCHAR(255) NOT NULL,
   company VARCHAR(255),
   phone_number VARCHAR(255),
-  dial_code VARCHAR(100),
   address_line1 TEXT NOT NULL,
   address_line2 TEXT,
-  country VARCHAR(255),
+  country_id INTEGER REFERENCES countries(id) NOT NULL,
   city VARCHAR(255),
   note TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -402,7 +402,6 @@ CREATE TRIGGER customer_set_update BEFORE UPDATE ON customers FOR EACH ROW EXECU
 CREATE TRIGGER order_set_update BEFORE UPDATE ON orders FOR EACH ROW EXECUTE PROCEDURE update_at_timestamp();
 CREATE TRIGGER slideshow_set_update BEFORE UPDATE ON slideshows FOR EACH ROW EXECUTE PROCEDURE update_at_timestamp();
 CREATE TRIGGER notification_set_update BEFORE UPDATE ON notifications FOR EACH ROW EXECUTE PROCEDURE update_at_timestamp();
-CREATE TRIGGER shipping_set_update BEFORE UPDATE ON shippings FOR EACH ROW EXECUTE PROCEDURE update_at_timestamp();
 CREATE TRIGGER tag_set_update BEFORE UPDATE ON tags FOR EACH ROW EXECUTE PROCEDURE update_at_timestamp();
 CREATE TRIGGER order_statuse_set_update BEFORE UPDATE ON order_statuses FOR EACH ROW EXECUTE PROCEDURE update_at_timestamp();
 CREATE TRIGGER suppliers_set_update BEFORE UPDATE ON suppliers FOR EACH ROW EXECUTE PROCEDURE update_at_timestamp();
@@ -432,8 +431,6 @@ CREATE INDEX idx_product_attribute_values_product_attribute_id ON product_attrib
 CREATE INDEX idx_product_attribute_values_attribute_value_id ON product_attribute_values (attribute_value_id);
 -- product_attributes
 CREATE INDEX idx_product_attribute_fk ON product_attributes (product_id, attribute_id);
--- product_shippings
-CREATE INDEX idx_product_shippings_fk ON product_shippings (product_id);
 -- variants
 CREATE INDEX idx_product_id_variants ON variants (product_id);
 CREATE INDEX idx_variant_option_id_variants ON variants (variant_option_id);
@@ -509,13 +506,18 @@ INSERT INTO attribute_values (attribute_id, attribute_value, color) VALUES
   (( SELECT id FROM att_id WHERE attribute_name = 'Size'), '5XL', null);
   
 INSERT INTO order_statuses (status_name, color, privacy) VALUES
-  ('Complete', '#5ae510','public'),
-  ('Processing', '#ffe224', 'public'),
-  ('Pending', '#20b9df', 'public'),
+  ('Delivered', '#5ae510','public'),
+  ('Unreached', '#ff03d3','public'),
+  ('Paid', '#4caf50','public'),
+  ('Confirmed', '#00d4cb','public'),
+  ('Processing', '#ab5ae9', 'public'),
+  ('Pending', '#ffe224', 'public'),
   ('On Hold', '#d6d6d6', 'public'),
   ('Shipped', '#71f9f7', 'public'),
   ('Cancelled', '#FD9F3D', 'public'),
-  ('Faild', '#FF532F', 'private');
+  ('Refused', '#FF532F', 'private'),
+  ('Awaiting Return', '#000', 'private'),
+  ('Returned', '#000', 'private');
   
 INSERT INTO roles (id, role_name, privileges) VALUES
   (1, 'Store Administrator', ARRAY ['super_admin_privilege', 'admin_read_privilege', 'admin_create_privilege', 'admin_update_privilege', 'admin_delete_privilege', 'staff_read_privilege', 'staff_create_privilege', 'staff_update_privilege', 'staff_delete_privilege']),
